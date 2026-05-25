@@ -1,8 +1,8 @@
 {
   "name": "SuperApp Famille Mobile",
   "short_name": "SuperFamille",
-  "description": "SuperApp Famille Mobile V4.3.3 — filtres, boutons et calendrier corrigés.",
-  "start_url": "./index.html?v=4.3.3",
+  "description": "SuperApp Famille Mobile V4.3.4 — localisation du foyer et météo mobile.",
+  "start_url": "./index.html?v=4.3.4",
   "display": "standalone",
   "background_color": "#fff8f1",
   "theme_color": "#fff8f1",

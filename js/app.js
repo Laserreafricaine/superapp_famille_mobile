@@ -1,7 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_2_kpi_cliquables';
-  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.3.3';
+  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_4_localisation_meteo';
+  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_2_kpi_cliquables','superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
+  const APP_VERSION = '4.3.4';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -52,11 +52,18 @@
 
   const defaultData = {
     settings: {
-      city: 'Paris', country: 'France', currency: 'EUR', theme: 'clair', connectedToCockpit: false,
+      city: 'Eulmont', country: 'France', postalCode: '54690', weatherCity: 'Eulmont', currency: 'EUR', theme: 'clair', connectedToCockpit: false,
       offer: structuredClone(defaultOffer), syncMode: 'mobile_only',
       notificationsPrefs: {global:true, sauvegarde:true, synchro:true, maison:true, courses_repas:true, education:true, sante:true, sport_loisirs:true, familles:true},
       appearance: {theme:'clair', accent:'familial', accueil:'resume'}
     },
+    foyer: {
+      city:'Eulmont', postalCode:'54690', country:'France', weatherCity:'Eulmont', weatherAuto:true,
+      useDeviceLocation:false, latitude:48.747, longitude:6.230,
+      weatherAlerts:{pluie:true, froid:true, vent:true, neige:true, canicule:true},
+      usefulPlaces:['Maison','École','Travail','Club / activité','Médecin']
+    },
+    weather: {city:'Eulmont', temperature:null, wind:null, summary:'Météo à actualiser', updatedAt:''},
     offer: structuredClone(defaultOffer),
     appsRegistry: makeAppsRegistry(),
     family: [
@@ -252,6 +259,14 @@
     d.settings = {...base.settings, ...(d.settings||{})};
     d.settings.notificationsPrefs = {...base.settings.notificationsPrefs, ...(d.settings.notificationsPrefs||{})};
     d.settings.appearance = {...base.settings.appearance, ...(d.settings.appearance||{})};
+    d.foyer = {...base.foyer, ...(d.foyer||{})};
+    d.foyer.weatherAlerts = {...base.foyer.weatherAlerts, ...(d.foyer.weatherAlerts||{})};
+    if(!Array.isArray(d.foyer.usefulPlaces)) d.foyer.usefulPlaces = base.foyer.usefulPlaces;
+    d.weather = {...base.weather, ...(d.weather||{})};
+    d.settings.city = d.foyer.city || d.settings.city || 'Eulmont';
+    d.settings.postalCode = d.foyer.postalCode || d.settings.postalCode || '54690';
+    d.settings.country = d.foyer.country || d.settings.country || 'France';
+    d.settings.weatherCity = d.foyer.weatherCity || d.settings.weatherCity || d.settings.city;
     d.offer = {...defaultOffer, ...(d.offer || d.settings.offer || {})};
     d.settings.offer = {...defaultOffer, ...(d.settings.offer || d.offer || {})};
     d.settings.syncMode = d.settings.syncMode || d.offer.syncMode || 'mobile_only';
@@ -299,6 +314,22 @@
   function mealForDay(index){ return data.weeklyMeals.find(m=>Number(m.day)===index) || {title:'À définir', type:'Repas'}; }
   function todayMeal(){ const dayIndex=(todayObj.getDay()+6)%7; return mealForDay(dayIndex); }
   function currency(value){ return `${Number(value||0).toLocaleString('fr-FR')} ${data.foodBudget?.currency || data.settings.currency || 'EUR'}`; }
+  function foyer(){ data.foyer = data.foyer || {}; return data.foyer; }
+  function weatherCityLabel(){ const f=foyer(); return `${f.weatherCity || f.city || data.settings.city || 'Eulmont'}${f.postalCode ? ' — ' + f.postalCode : ''}`; }
+  function weatherSummary(){
+    const w = data.weather || {}; const f = foyer();
+    if(w.temperature !== null && w.temperature !== undefined && w.temperature !== '') return `${Math.round(Number(w.temperature))}° · ${w.summary || 'météo'}${w.wind ? ' · vent ' + Math.round(Number(w.wind)) + ' km/h' : ''}`;
+    return `${f.weatherAuto===false?'Météo désactivée':'Météo à actualiser'}`;
+  }
+  const WEATHER_CITY_PRESETS = [
+    {city:'Eulmont', postalCode:'54690', country:'France', lat:48.747, lon:6.230},
+    {city:'Nancy', postalCode:'54000', country:'France', lat:48.692, lon:6.184},
+    {city:'Champigneulles', postalCode:'54250', country:'France', lat:48.734, lon:6.164},
+    {city:'Bouxières-aux-Dames', postalCode:'54136', country:'France', lat:48.752, lon:6.167},
+    {city:'Malzéville', postalCode:'54220', country:'France', lat:48.713, lon:6.184},
+    {city:'Lay-Saint-Christophe', postalCode:'54690', country:'France', lat:48.749, lon:6.199},
+    {city:'Dommartin-sous-Amance', postalCode:'54770', country:'France', lat:48.745, lon:6.282}
+  ];
   function moduleItems(id){
     id = canonicalModuleId(id);
     if(!isAppActive(id)) return [];
@@ -458,7 +489,7 @@
       </article>
       <article class="card weather weather-premium clickable-card" onclick="SuperApp.openSettings('localisation')">
         <div class="sun">🌤️</div><div><strong>18°C</strong><br><small>Ensoleillé · journée calme</small></div>
-        <div class="right"><b>${data.settings.city}</b><br><small>↑ 21° · ↓ 12°</small></div>
+        <div class="right"><b>${weatherCityLabel()}</b><br><small>${weatherSummary()}</small></div>
       </article>
       <div class="section-title"><h2>Aujourd’hui</h2><span>${displayDate(today).replace(/^./,c=>c.toUpperCase())}</span></div>
       <div class="today-grid">
@@ -845,6 +876,7 @@
   function renderSettings(){
     const items = [
       ['👨‍👩‍👧‍👦','Famille','Membres du foyer, rôles et informations de base','assets/images/cards/settings_famille.png'],
+      ['🏡','Localisation du foyer','Ville, météo et position principale','assets/images/cards/settings_country.png'],
       ['📱','Applications','Apps actives, disponibles, licences et connexion','assets/images/cards/settings_country.png'],
       ['📁','Catégories','Catégories par application active','assets/images/cards/settings_categories.png'],
       ['🧩','Sous-catégories','Sous-catégories et libellés par catégorie','assets/images/cards/settings_categories.png'],
@@ -858,7 +890,7 @@
     const inactive = inactiveAppModules().length;
     $('#view-settings').innerHTML = `
       <article class="sync-summary-card">
-        <div><span>KPI CLIQUABLES V4.3.1</span><h2>Tout est cliquable, visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
+        <div><span>LOCALISATION MÉTÉO V4.3.4</span><h2>Tout est cliquable, visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
         <div class="settings-chips embedded"><span>${active} app(s) active(s)</span><span>${inactive} disponible(s)</span><span>${data.offer?.syncEnabled ? 'Synchro active' : 'Mobile seul'}</span></div>
       </article>
       <div class="settings-list">${items.map(([i,t,d,img])=>`<article class="setting-item clickable-card" onclick="SuperApp.openSettings('${t}')"><div class="setting-icon">${i}</div><div><b>${t}</b><small>${d}</small></div><img class="setting-art" src="${img}" alt=""><span class="chev">›</span></article>`).join('')}</div>
@@ -1012,6 +1044,7 @@
     $('#editTitle').textContent = `Paramètres — ${String(section || 'Paramètres')}`;
     let html = '';
     if(key.includes('famille')) html = settingsFamilyPanel();
+    else if(key.includes('localisation') || key.includes('meteo') || key.includes('ville') || key.includes('foyer')) html = settingsLocationPanel();
     else if(key.includes('application')) html = settingsAppsPanel();
     else if(key.includes('categorie') && !key.includes('sous')) html = settingsCategoriesPanel(module);
     else if(key.includes('sous')) html = settingsSubCategoriesPanel(module);
@@ -1048,6 +1081,34 @@
       <div class="settings-family-grid">${visibleMembers.map(settingsMemberVisualCard).join('')}</div>
       <button class="btn primary visual-wide" type="button" onclick="SuperApp.openSettingsMember('')">+ Ajouter un membre</button>`;
   }
+  function settingsLocationPanel(){
+    const f = foyer();
+    const alerts = f.weatherAlerts || {};
+    const cityCards = WEATHER_CITY_PRESETS.map(c=>`<article class="location-city-card clickable-card" data-action="SuperApp.applyWeatherCity('${escapeAttr(c.city)}','${escapeAttr(c.postalCode)}','${escapeAttr(c.country)}',${c.lat},${c.lon})"><span>📍</span><b>${escapeHtml(c.city)}</b><small>${escapeHtml(c.postalCode)} — ${escapeHtml(c.country)}</small></article>`).join('');
+    $('#editForm').dataset.type = 'settings_location';
+    return `${settingsVisualHero({title:'Localisation du foyer', text:'La ville du foyer alimente la météo de l’accueil, les alertes utiles, le calendrier, Maison et Sport / loisirs. Tout reste modifiable sur mobile.', img:'assets/images/cards/settings_country.png', emoji:'🏡', chips:[weatherCityLabel(), f.weatherAuto===false?'Météo désactivée':'Météo automatique', f.useDeviceLocation?'Position téléphone':'Ville manuelle']})}
+      <div class="location-dashboard">
+        <article class="location-main-card"><span>🏡</span><div><b>${escapeHtml(f.city || 'Eulmont')}</b><small>${escapeHtml(f.postalCode || '54690')} — ${escapeHtml(f.country || 'France')}</small><p>Ville météo : <b>${escapeHtml(f.weatherCity || f.city || 'Eulmont')}</b></p></div></article>
+        <article class="location-main-card"><span>🌤️</span><div><b>${escapeHtml(data.weather?.summary || 'Météo à actualiser')}</b><small>${weatherSummary()}</small><p>${data.weather?.updatedAt ? 'Actualisée : ' + new Date(data.weather.updatedAt).toLocaleString('fr-FR') : 'Clique sur Actualiser météo quand tu veux tester.'}</p></div></article>
+      </div>
+      <div class="form-field"><label>Ville du foyer</label><input name="city" required value="${escapeAttr(f.city || 'Eulmont')}"></div>
+      <div class="form-field"><label>Code postal</label><input name="postalCode" required value="${escapeAttr(f.postalCode || '54690')}"></div>
+      <div class="form-field"><label>Pays</label><input name="country" required value="${escapeAttr(f.country || 'France')}"></div>
+      <div class="form-field"><label>Ville météo affichée</label><input name="weatherCity" required value="${escapeAttr(f.weatherCity || f.city || 'Eulmont')}"></div>
+      <input type="hidden" name="latitude" value="${escapeAttr(f.latitude || '')}"><input type="hidden" name="longitude" value="${escapeAttr(f.longitude || '')}">
+      <div class="settings-choice-grid location-toggles">
+        <label><span>🌤️</span><b>Météo automatique</b><select name="weatherAuto"><option value="true" ${f.weatherAuto!==false?'selected':''}>Activée</option><option value="false" ${f.weatherAuto===false?'selected':''}>Désactivée</option></select></label>
+        <label><span>📱</span><b>Position du téléphone</b><select name="useDeviceLocation"><option value="false" ${!f.useDeviceLocation?'selected':''}>Désactivée</option><option value="true" ${f.useDeviceLocation?'selected':''}>Activée</option></select></label>
+      </div>
+      <h4 class="settings-mini-title">Villes météo rapides</h4><div class="location-city-grid">${cityCards}</div>
+      <h4 class="settings-mini-title">Alertes météo utiles</h4>
+      <div class="settings-notif-grid compact-alerts">
+        ${[['pluie','🌧️','Pluie'],['froid','🥶','Froid'],['vent','💨','Vent fort'],['neige','❄️','Neige / verglas'],['canicule','☀️','Canicule']].map(([id,emoji,label])=>`<label class="settings-notif-card"><input type="checkbox" name="alert_${id}" ${alerts[id]!==false?'checked':''}><div><span>${emoji}</span><b>${label}</b><small>Alerte active si cochée</small></div><em>${alerts[id]!==false?'Oui':'Non'}</em></label>`).join('')}
+      </div>
+      <div class="form-field"><label>Lieux utiles de la famille</label><textarea name="usefulPlaces" rows="5" placeholder="Une valeur par ligne">${escapeHtml((f.usefulPlaces || []).join('\n'))}</textarea></div>
+      <div class="today-grid"><button class="btn ghost" type="button" onclick="SuperApp.useCurrentPosition()">📍 Utiliser ma position</button><button class="btn ghost" type="button" onclick="SuperApp.refreshWeather()">🌤️ Actualiser météo</button></div>`;
+  }
+
   function openSettingsMember(id=''){
     const m = data.family.find(x=>x.id===id) || {};
     $('#editTitle').textContent = id ? 'Modifier un membre' : 'Ajouter un membre';
@@ -1138,6 +1199,11 @@
   }
   function saveSettingsForm(type,item,id=''){
 
+    if(type==='settings_location'){
+      data.foyer = {...(data.foyer||{}), city:item.city||'Eulmont', postalCode:item.postalCode||'54690', country:item.country||'France', weatherCity:item.weatherCity||item.city||'Eulmont', latitude:Number(item.latitude||data.foyer?.latitude||0)||null, longitude:Number(item.longitude||data.foyer?.longitude||0)||null, weatherAuto:item.weatherAuto==='true', useDeviceLocation:item.useDeviceLocation==='true', usefulPlaces:lineArray(item.usefulPlaces), weatherAlerts:{pluie:!!item.alert_pluie, froid:!!item.alert_froid, vent:!!item.alert_vent, neige:!!item.alert_neige, canicule:!!item.alert_canicule}, updatedAt:nowISO(), updatedFrom:'application_mobile', syncStatus:'local_only'};
+      data.settings.city = data.foyer.city; data.settings.postalCode = data.foyer.postalCode; data.settings.country = data.foyer.country; data.settings.weatherCity = data.foyer.weatherCity;
+      save(); render(); showSettingsPanel('Localisation du foyer'); return;
+    }
     if(type==='settings_budget_courses'){
       data.foodBudget = {monthly:Number(item.monthly||0), spent:Number(item.spent||0), currency:item.currency || data.settings.currency || 'EUR'};
       save(); render(); try{$('#editDialog').close();}catch{} openBudgetBoard(); return;
@@ -1173,6 +1239,42 @@
     }
     $('#editDialog').close();
   }
+  function applyWeatherCity(city, postalCode, country='France', lat=null, lon=null){
+    data.foyer = {...(data.foyer||{}), city, postalCode, country, weatherCity:city, latitude:lat, longitude:lon, useDeviceLocation:false, updatedAt:nowISO(), updatedFrom:'application_mobile', syncStatus:'local_only'};
+    data.settings.city = city; data.settings.postalCode = postalCode; data.settings.country = country; data.settings.weatherCity = city;
+    save(); render(); showSettingsPanel('Localisation du foyer');
+  }
+  function useCurrentPosition(){
+    if(!navigator.geolocation){ alert('La géolocalisation n’est pas disponible sur ce téléphone.'); return; }
+    navigator.geolocation.getCurrentPosition(pos=>{
+      data.foyer = {...(data.foyer||{}), latitude:pos.coords.latitude, longitude:pos.coords.longitude, useDeviceLocation:true, updatedAt:nowISO(), updatedFrom:'application_mobile', syncStatus:'local_only'};
+      save(); render(); showSettingsPanel('Localisation du foyer'); alert('Position du téléphone enregistrée pour la météo.');
+    },()=>alert('Position non autorisée. Tu peux garder Eulmont — 54690 en ville météo.'),{enableHighAccuracy:false,timeout:10000,maximumAge:3600000});
+  }
+  function weatherCodeLabel(code){
+    const c = Number(code);
+    if([0].includes(c)) return 'Ciel clair';
+    if([1,2,3].includes(c)) return 'Nuages variables';
+    if([45,48].includes(c)) return 'Brouillard';
+    if([51,53,55,56,57].includes(c)) return 'Bruine';
+    if([61,63,65,66,67,80,81,82].includes(c)) return 'Pluie';
+    if([71,73,75,77,85,86].includes(c)) return 'Neige';
+    if([95,96,99].includes(c)) return 'Orage';
+    return 'Météo';
+  }
+  async function refreshWeather(){
+    const f = foyer();
+    const lat = Number(f.latitude || WEATHER_CITY_PRESETS.find(x=>x.city===f.weatherCity || x.city===f.city)?.lat || 48.747);
+    const lon = Number(f.longitude || WEATHER_CITY_PRESETS.find(x=>x.city===f.weatherCity || x.city===f.city)?.lon || 6.230);
+    try{
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`;
+      const res = await fetch(url,{cache:'no-store'}); if(!res.ok) throw new Error('Météo indisponible');
+      const json = await res.json(); const cur = json.current || {};
+      data.weather = {city:f.weatherCity || f.city || 'Eulmont', latitude:lat, longitude:lon, temperature:cur.temperature_2m, wind:cur.wind_speed_10m, weatherCode:cur.weather_code, summary:weatherCodeLabel(cur.weather_code), updatedAt:nowISO()};
+      save(); render(); showSettingsPanel('Localisation du foyer');
+    }catch(err){ alert('Impossible d’actualiser la météo maintenant. La ville reste bien enregistrée.'); }
+  }
+
   function archiveMember(id){
     const m = data.family.find(x=>x.id===id); if(!m) return;
     if(confirm('Archiver ce membre ? Ses anciennes données resteront synchronisables.')){ m.status='archive'; m.statut='archive'; touchSync(m); save(); render(); showSettingsPanel('Famille'); }
@@ -1225,7 +1327,7 @@
       (data[collection]||[]).forEach(item=>elements.push({...structuredClone(item), module: canonicalModuleId(item.module || module), _collection:collection, titre:item.titre || item.title || item.name || ''}));
     });
     return {
-      socle: {offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), referenceData: structuredClone(data.referenceData || {})},
+      socle: {offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), foyer: structuredClone(data.foyer || {}), weather: structuredClone(data.weather || {}), referenceData: structuredClone(data.referenceData || {})},
       parametres: structuredClone(data.settings || {}),
       membres: structuredClone(data.family || []),
       modules: structuredClone(data.appsRegistry || makeAppsRegistry()),
@@ -1234,7 +1336,7 @@
       elements,
       documents: structuredClone(data.documents || []),
       notifications: getNotifications().map(n=>({...n, module:canonicalModuleId(n.module), syncStatus:'synced'})),
-      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_3_filtres_actions', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
+      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_4_localisation_meteo', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
     };
   }
   function exportData(){
@@ -1243,7 +1345,7 @@
       offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), data: buildExportData()
     };
     const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-3-filtres-actions-export.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-4-localisation-meteo-export.json'; a.click(); URL.revokeObjectURL(a.href);
   }
   function normalizeImportPayload(json){
     const payload = json?.schema === 'superapp_famille' ? {...(json.data||{}), offer:json.offer, appsRegistry:json.appsRegistry || json.data?.socle?.appsRegistry} : json;
@@ -1252,6 +1354,8 @@
     if(payload.elements || payload.membres || payload.parametres){
       const rebuilt = structuredClone(defaultData);
       rebuilt.settings = {...rebuilt.settings, ...(payload.parametres||{})};
+      rebuilt.foyer = {...rebuilt.foyer, ...(payload.socle?.foyer||{})};
+      rebuilt.weather = {...rebuilt.weather, ...(payload.socle?.weather||{})};
       if(Array.isArray(payload.membres)) rebuilt.family = payload.membres;
       collectionRegistry().forEach(([collection])=>{ rebuilt[collection] = []; });
       (payload.elements||[]).forEach(item=>{
@@ -1279,6 +1383,8 @@
     out.offer = {...defaultOffer, ...(out.offer||{}), ...(incoming.offer||{})};
     out.settings.offer = {...defaultOffer, ...(out.settings.offer||{}), ...(incoming.settings?.offer||{}), ...(incoming.offer||{})};
     out.appsRegistry = makeAppsRegistry({...out.appsRegistry, ...(incoming.appsRegistry||{})});
+    out.foyer = {...(out.foyer||{}), ...(incoming.foyer||{})};
+    out.weather = {...(out.weather||{}), ...(incoming.weather||{})};
     out.family = mergeArray(out.family, incoming.family || [], report);
     out.categories = migrateCategories({...out.categories, ...(incoming.categories||{})});
     collectionRegistry().forEach(([collection])=>{ out[collection] = mergeArray(out[collection]||[], incoming[collection]||[], report); });
@@ -1309,7 +1415,7 @@
     calendarMode:(m)=>{state.calendarMode=m;renderCalendar();},
     shiftMonth:(n)=>{const d=parseDMY(state.selectedDate)||new Date();d.setMonth(d.getMonth()+n);state.selectedDate=formatDMY(d);renderCalendar();},
     selectDate:(d)=>{state.selectedDate=d;state.calendarMode='day';renderCalendar();},
-    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor, openModuleList, openBudgetEditor, openMemberDocList, openFamilyMembersManager
+    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor, openModuleList, openBudgetEditor, openMemberDocList, openFamilyMembersManager, applyWeatherCity, useCurrentPosition, refreshWeather
   };
   init();
 })();
