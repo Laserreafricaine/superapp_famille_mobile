@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fff8f1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>SuperApp Famille Mobile V4.2 — visuels cockpit mobile</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <main class="mobile-frame">
+      <header class="topbar" aria-label="En-tête">
+        <div class="family-mini" aria-hidden="true"><img src="assets/images/famille/family_badge_transparent.png" alt="" /></div>
+        <div>
+          <h1 id="screenTitle">Bonjour la famille 👋</h1>
+          <p id="screenSubtitle">Tout est bien organisé aujourd’hui.</p>
+        </div>
+        <button class="icon-btn" id="quickNotificationBtn" aria-label="Voir les notifications">🔔<span class="badge" id="topBadge">3</span></button>
+      </header>
+
+      <section id="view-home" class="view active" data-view="home" aria-label="Accueil"></section>
+      <section id="view-calendar" class="view" data-view="calendar" aria-label="Calendrier"></section>
+      <section id="view-apps" class="view" data-view="apps" aria-label="Applications"></section>
+      <section id="view-notifications" class="view" data-view="notifications" aria-label="Notifications"></section>
+      <section id="view-settings" class="view" data-view="settings" aria-label="Paramètres"></section>
+
+      <button id="fab" class="fab" aria-label="Ajouter rapidement">+</button>
+
+      <nav class="bottom-nav" aria-label="Navigation principale">
+        <button class="nav-btn active" data-target="home" aria-label="Accueil"><span>🏠</span><small>Accueil</small></button>
+        <button class="nav-btn" data-target="calendar" aria-label="Calendrier"><span>📅</span><small>Calendrier</small></button>
+        <button class="nav-btn" data-target="apps" aria-label="Apps"><span>▦</span><small>Apps</small></button>
+        <button class="nav-btn" data-target="notifications" aria-label="Notifications"><span>🔔</span><small>Notifications</small><em id="navNotifBadge">3</em></button>
+        <button class="nav-btn" data-target="settings" aria-label="Paramètres"><span>⚙️</span><small>Paramètres</small></button>
+      </nav>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" hidden></div>
+  <dialog id="actionDialog" class="dialog-card" aria-label="Action rapide">
+    <form method="dialog">
+      <header class="dialog-head">
+        <h2>Ajouter rapidement</h2>
+        <button class="icon-btn" value="cancel" aria-label="Fermer">✕</button>
+      </header>
+      <div class="quick-actions" id="quickActions"></div>
+    </form>
+  </dialog>
+
+  <dialog id="editDialog" class="dialog-card" aria-label="Formulaire">
+    <form id="editForm" method="dialog">
+      <header class="dialog-head">
+        <h2 id="editTitle">Nouvel élément</h2>
+        <button class="icon-btn" value="cancel" aria-label="Fermer">✕</button>
+      </header>
+      <div id="editFields" class="form-stack"></div>
+      <footer class="dialog-actions">
+        <button class="btn ghost" type="button" id="cancelEdit">Annuler</button>
+        <button class="btn primary" type="submit">Enregistrer</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <input id="importInput" type="file" accept="application/json" hidden />
+  <script src="js/app.js"></script>
+</body>
+</html>

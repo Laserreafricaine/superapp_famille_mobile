@@ -1,0 +1,22 @@
+{
+  "name": "SuperApp Famille Mobile",
+  "short_name": "SuperFamille",
+  "description": "SuperApp Famille Mobile V4.2 — visuels cockpit adaptés au mobile.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff8f1",
+  "theme_color": "#fff8f1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "assets/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
