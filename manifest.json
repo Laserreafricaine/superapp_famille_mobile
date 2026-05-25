@@ -1,7 +1,7 @@
 {
   "name": "SuperApp Famille Mobile",
   "short_name": "SuperFamille",
-  "description": "SuperApp Famille Mobile V4.3 — cartes exploitables, visuelles et mignonnes.",
+  "description": "SuperApp Famille Mobile V4.3.1 — cartes exploitables, visuelles et mignonnes.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#fff8f1",

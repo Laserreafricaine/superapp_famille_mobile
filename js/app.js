@@ -1,7 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_cartes_exploitables';
+  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_1_kpi_cliquables';
   const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.3.0';
+  const APP_VERSION = '4.3.1';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -476,7 +476,10 @@
 
   function moduleKpis(items){
     return `<div class="module-kpis">
-      ${items.map(([v,l])=>`<article class="kpi-pill"><strong>${v}</strong><small>${l}</small></article>`).join('')}
+      ${items.map(([v,l,emoji='',action=''])=>{
+        const click = action ? ` onclick="${action}" tabindex="0" role="button" aria-label="Ouvrir ${escapeAttr(l)}"` : '';
+        return `<article class="kpi-pill ${action?'clickable-card kpi-clickable':''}"${click}><span class="kpi-emoji">${emoji}</span><strong>${v}</strong><small>${l}</small></article>`;
+      }).join('')}
     </div>`;
   }
   function subsection(title, action, body){
@@ -515,7 +518,7 @@
     const budget = data.foodBudget || {monthly:0,spent:0,currency:'EUR'};
     const lowStock = data.stock.filter(x=>(x.level||'').toLowerCase()==='faible');
     return `
-      ${moduleKpis([[meal.title,'menu du jour'],[data.weeklyMeals.length,'menus semaine'],[data.shopping.filter(x=>x.status!=='done').length,'courses'],[lowStock.length,'stock faible']])}
+      ${moduleKpis([[meal.title,'menu du jour','🍽️',`SuperApp.openModuleList('courses_repas','menu_du_jour')`],[data.weeklyMeals.length,'menus semaine','📅',`SuperApp.openModuleList('courses_repas','menu_de_la_semaine')`],[data.shopping.filter(x=>!statusIsDone(x) && !statusIsHidden(x)).length,'courses','🛒',`SuperApp.openModuleList('courses_repas','liste_des_courses')`],[lowStock.length,'stock faible','⚠️',`SuperApp.openModuleList('courses_repas','alertes_utiles')`]])}
       ${playfulBlock({title:'Menu du jour', block:'menu_du_jour', onClick:`SuperApp.openModuleList('courses_repas','menu_du_jour')`, emoji:'🍽️', img:cardImg('courses_menu_jour.png'), tone:'food tone-food-1', kicker:'Repas', action:`<button class="link-btn" onclick="SuperApp.openModuleList('courses_repas','menu_du_jour')">Modifier</button>`, body:`<article class="feature-card food-feature embedded"><div><span>Repas prévu</span><h3>${meal.title}</h3><p>${meal.type || 'Dîner'} · ingrédients à préparer depuis la liste de courses.</p></div></article>`})}
       ${playfulBlock({title:'Menu de la semaine', block:'menu_de_la_semaine', onClick:`SuperApp.openModuleList('courses_repas','menu_de_la_semaine')`, emoji:'📅', img:cardImg('courses_menu_semaine.png'), tone:'food tone-food-2', kicker:'7 jours', body:`<div class="week-menu playful-week">${weekDays().map((d,i)=>{ const m=mealForDay(i); return `<article><b>${d.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')}</b><small>${shortDate(formatDMY(d))}</small><strong>${m.title}</strong><em>${m.type || 'Repas'}</em></article>`; }).join('')}</div>`})}
       ${playfulBlock({title:'Liste des courses', block:'liste_des_courses', onClick:`SuperApp.openModuleList('courses_repas','liste_des_courses')`, emoji:'🛒', img:cardImg('courses_liste.png'), tone:'food tone-food-3', kicker:'À cocher', action:`<button class="link-btn" onclick="SuperApp.openModuleList('courses_repas','liste_des_courses')">+ Ajouter</button>`, body:rowList(data.shopping,'🛒','Courses')})}
@@ -526,9 +529,9 @@
       ${playfulSettings('courses_repas','Courses',cardImg('courses_parametres.png'),'food tone-food-4')}`;
   }
   function homeModuleContent(){
-    const overdue = data.tasks.filter(x=>x.status!=='done' && x.date && daysDiff(today,x.date)<0);
-    const todayTasks = data.tasks.filter(x=>x.date===today && x.status!=='done');
-    return `${moduleKpis([[todayTasks.length,'tâches du jour'],[overdue.length,'en retard'],[data.family.length,'membres'],['Oui','récurrences']])}
+    const overdue = data.tasks.filter(x=>!statusIsDone(x) && !statusIsHidden(x) && x.date && daysDiff(today,x.date)<0);
+    const todayTasks = data.tasks.filter(x=>x.date===today && !statusIsDone(x) && !statusIsHidden(x));
+    return `${moduleKpis([[todayTasks.length,'tâches du jour','🏠',`SuperApp.openModuleList('maison','taches_du_jour')`],[overdue.length,'en retard','⏰',`SuperApp.openModuleList('maison','urgences_maison')`],[data.family.length,'membres','👨‍👩‍👧‍👦',`SuperApp.openFamilyMembersManager('all')`],['Oui','récurrences','🔁',`SuperApp.openModuleList('maison','routines')`]])}
       ${playfulBlock({title:'Tâches du jour', block:'taches_du_jour', onClick:`SuperApp.openModuleList('maison','taches_du_jour')`, emoji:'🏠', img:cardImg('maison_taches.png'), tone:'home tone-home-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openModuleList('maison','taches_du_jour')">+ Ajouter</button>`, body:rowList(todayTasks.length?todayTasks:data.tasks,'🏠','Maison')})}
       ${playfulBlock({title:'Routines', block:'routines', onClick:`SuperApp.openModuleList('maison','routines')`, emoji:'🔁', img:cardImg('maison_routines.png'), tone:'home tone-home-2', kicker:'Habitudes', body:`<div class="settings-chips embedded"><span>Matin</span><span>Soir</span><span>Ménage</span><span>Linge</span><span>Préparation école</span></div>`})}
       ${playfulBlock({title:'Répartition famille', block:'repartition_famille', onClick:`SuperApp.openModule('familles')`, emoji:'👨‍👩‍👧‍👦', img:cardImg('maison_repartition.png'), tone:'home tone-home-3', kicker:'Famille canonique', body:`<div class="settings-chips embedded">${data.family.slice(0,5).map(m=>`<span>${m.name.split(' ')[0]} · ${data.tasks.filter(t=>t.member===m.id).length}</span>`).join('')}</div>`})}
@@ -538,7 +541,7 @@
       ${playfulPreview('maison','Maison',cardImg('maison_calendrier.png'),'home tone-home-2')}`;
   }
   function educationModuleContent(){
-    return `${moduleKpis([[data.homework.length,'devoirs'],[data.schoolDocs.length,'documents'],[data.grades.length,'notes'],[data.family.filter(m=>m.role==='Enfant').length,'enfants']])}
+    return `${moduleKpis([[data.homework.filter(x=>!statusIsHidden(x)).length,'devoirs','📘',`SuperApp.openModuleList('education','devoirs')`],[data.schoolDocs.filter(x=>!statusIsHidden(x)).length,'documents','📄',`SuperApp.openModuleList('education','documents_ecole')`],[data.grades.filter(x=>!statusIsHidden(x)).length,'notes','⭐',`SuperApp.openModuleList('education','notes_appreciations')`],[data.family.filter(m=>m.role==='Enfant' && m.active!==false).length,'enfants','🎒',`SuperApp.openFamilyMembersManager('children')`]])}
       ${playfulBlock({title:'Devoirs', block:'devoirs', onClick:`SuperApp.openModuleList('education','devoirs')`, emoji:'📘', img:cardImg('education_devoirs.png'), tone:'edu tone-edu-1', kicker:'À faire', action:`<button class="link-btn" onclick="SuperApp.openModuleList('education','devoirs')">+ Ajouter</button>`, body:rowList(data.homework,'📘','Éducation')})}
       ${playfulBlock({title:'Contrôles', block:'controles', onClick:`SuperApp.openModuleList('education','controles')`, emoji:'📝', img:cardImg('education_controles.png'), tone:'edu tone-edu-2', kicker:'Révisions', body:`<div class="settings-chips embedded"><span>Maths</span><span>Français</span><span>Histoire</span><span>À planifier</span></div>`})}
       ${playfulBlock({title:'Documents école', block:'documents_ecole', onClick:`SuperApp.openModuleList('education','documents_ecole')`, emoji:'📄', img:cardImg('education_documents.png'), tone:'edu tone-edu-3', kicker:'À signer', body:rowList(data.schoolDocs,'📄','Document école')})}
@@ -550,7 +553,7 @@
     const appts = data.health.filter(x=>x.type==='appointment');
     const meds = data.health.filter(x=>x.type==='medication');
     const treatments = data.health.filter(x=>x.category==='Traitements' || x.type==='medication');
-    return `${moduleKpis([[meds.length,'médicaments'],[appts.length,'rendez-vous'],[data.vaccines.length,'vaccins'],[data.healthDocs.length,'documents']])}
+    return `${moduleKpis([[meds.filter(x=>!statusIsHidden(x)).length,'médicaments','💊',`SuperApp.openModuleList('sante','medicaments')`],[appts.filter(x=>!statusIsHidden(x)).length,'rendez-vous','🩺',`SuperApp.openModuleList('sante','rendez_vous_medicaux')`],[data.vaccines.filter(x=>!statusIsHidden(x)).length,'vaccins','💉',`SuperApp.openModuleList('sante','vaccins')`],[data.healthDocs.filter(x=>!statusIsHidden(x)).length,'documents','📁',`SuperApp.openModuleList('sante','documents_sante')`]])}
       ${playfulBlock({title:'Santé aujourd’hui', block:'sante_aujourdhui', onClick:`SuperApp.openModuleList('sante','sante_aujourdhui')`, emoji:'❤️', img:cardImg('sante_aujourdhui.png'), tone:'health tone-health-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openModuleList('sante','medicaments')">+ Ajouter</button>`, body:rowList(data.health,xIconHealth(),'Santé')})}
       ${playfulBlock({title:'Médicaments', block:'medicaments', onClick:`SuperApp.openModuleList('sante','medicaments')`, emoji:'💊', img:cardImg('sante_medicaments.png'), tone:'health tone-health-2', kicker:'Prises', body:rowList(meds,'💊','Médicament','Aucun médicament prévu.')})}
       ${playfulBlock({title:'Traitements', block:'traitements', onClick:`SuperApp.openModuleList('sante','traitements')`, emoji:'🧾', img:cardImg('sante_traitements.png'), tone:'health tone-health-3', kicker:'Suivi', body:rowList(treatments,'🧾','Traitement','Aucun traitement en cours.')})}
@@ -561,7 +564,7 @@
   }
   function xIconHealth(){ return '💗'; }
   function sportModuleContent(){
-    return `${moduleKpis([[data.sports.length,'activités'],[data.sportGear.length,'matériel/documents'],['Oui','clubs & lieux'],['Oui','sorties']])}
+    return `${moduleKpis([[data.sports.filter(x=>!statusIsHidden(x)).length,'activités','⚽',`SuperApp.openModuleList('sport_loisirs','activites_du_jour')`],[data.sportGear.filter(x=>!statusIsHidden(x)).length,'matériel/docs','🎒',`SuperApp.openModuleList('sport_loisirs','materiel')`],['Oui','clubs & lieux','📍',`SuperApp.openModuleList('sport_loisirs','clubs_lieux')`],['Oui','sorties','🎡',`SuperApp.openModuleList('sport_loisirs','sorties_familiales')`]])}
       ${playfulBlock({title:'Activités du jour', block:'activites_du_jour', onClick:`SuperApp.openModuleList('sport_loisirs','activites_du_jour')`, emoji:'⚽', img:cardImg('sport_activites.png'), tone:'sport tone-sport-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openModuleList('sport_loisirs','activites_du_jour')">+ Ajouter</button>`, body:rowList(data.sports,'⚽','Sport / loisirs')})}
       ${playfulBlock({title:'Sorties familiales', block:'sorties_familiales', onClick:`SuperApp.openModuleList('sport_loisirs','sorties_familiales')`, emoji:'🎡', img:cardImg('sport_sorties.png'), tone:'sport tone-sport-2', kicker:'Famille canonique', body:`<div class="settings-chips embedded"><span>Parc</span><span>Cinéma</span><span>Restaurant</span><span>Week-end</span></div>`})}
       ${playfulBlock({title:'Clubs & lieux', block:'clubs_lieux', onClick:`SuperApp.openModuleList('sport_loisirs','clubs_lieux')`, emoji:'📍', img:cardImg('sport_clubs.png'), tone:'sport tone-sport-3', kicker:'Repères', body:`<div class="settings-chips embedded"><span>Football</span><span>Danse</span><span>Natation</span><span>Cinéma</span><span>Parc</span></div>`})}
@@ -573,7 +576,7 @@
   function familyModuleContent(){
     const adults = data.family.filter(m=>m.role !== 'Enfant').length;
     const children = data.family.filter(m=>m.role === 'Enfant').length;
-    return `${moduleKpis([[data.family.length,'membres'],[adults,'adultes'],[children,'enfants'],['1 par membre','dossier']])}
+    return `${moduleKpis([[data.family.filter(m=>m.active!==false).length,'membres','👨‍👩‍👧‍👦',`SuperApp.openFamilyMembersManager('all')`],[adults,'adultes','🧑',`SuperApp.openFamilyMembersManager('adults')`],[children,'enfants','🧒',`SuperApp.openFamilyMembersManager('children')`],['1 par membre','dossier','📁',`SuperApp.openModuleList('familles','documents_famille')`]])}
       ${playfulBlock({title:'Espace famille', emoji:'👨‍👩‍👧‍👦', img:cardImg('familles_dossier.png'), tone:'family tone-family-1', kicker:'Famille canonique', body:`<p class="play-copy">Chaque personne dispose de sa carte, de ses informations utiles et de son propre dossier administratif : identité, passeport, diplômes, santé, scolarité et assurances.</p>`})}
       <div class="family-spaces">${data.family.map(memberCard).join('')}</div>
       ${playfulBlock({title:'Fonctions documentaires à prévoir', block:'documents_famille', onClick:`SuperApp.openModuleList('familles','documents_famille')`, emoji:'📁', img:cardImg('familles_identite.png'), tone:'family tone-family-2', kicker:'Import futur', action:`<button class="link-btn" disabled>Import futur</button>`, body:`<div class="settings-chips embedded"><span>Import fichiers</span><span>Classement par membre</span><span>Date d’expiration</span><span>Rappels renouvellement</span><span>Synchro cockpit</span></div>`})}
@@ -729,6 +732,19 @@
       <div class="management-list">${docs.length?docs.map(x=>managementRow(x,cfg)).join(''):`<article class="empty cute-empty"><b>${cfg.emoji} Aucun document</b><small>Ajoute un premier document pour ${escapeHtml(member.name)}.</small></article>`}</div>`;
   }
 
+  function openFamilyMembersManager(filter='all'){
+    const titleMap = {all:'Tous les membres', adults:'Adultes', children:'Enfants'};
+    const members = (data.family||[]).filter(m=>m.active!==false).filter(m=>{
+      if(filter==='children') return m.role === 'Enfant';
+      if(filter==='adults') return m.role !== 'Enfant';
+      return true;
+    });
+    const view = $('#view-apps'); setView('apps'); state.activeModule = 'familles';
+    view.innerHTML = `<div class="module-screen-head visual-head module-family"><div><span class="eyebrow">👨‍👩‍👧‍👦 Familles</span><h2>${titleMap[filter] || 'Membres du foyer'}</h2><p>Cartes membres cliquables, modification rapide, ajout et archivage depuis le mobile.</p></div><img src="${cardImg('familles_dossier.png')}" alt="" /></div>
+      <div class="list-toolbar-card"><button class="btn ghost" onclick="SuperApp.openModule('familles')">← Retour Familles</button><button class="btn primary" onclick="SuperApp.openSettingsMember('')">👤 + Ajouter</button></div>
+      <div class="family-spaces">${members.length ? members.map(memberCard).join('') : `<article class="empty cute-empty"><b>👤 Aucun membre</b><small>Ajoute un premier membre du foyer.</small><button class="btn primary" onclick="SuperApp.openSettingsMember('')">+ Ajouter</button></article>`}</div>`;
+  }
+
   function renderCalendar(){
     const selected = parseDMY(state.selectedDate) || new Date();
     const start = new Date(selected.getFullYear(), selected.getMonth(), 1);
@@ -782,7 +798,7 @@
     const inactive = inactiveAppModules().length;
     $('#view-settings').innerHTML = `
       <article class="sync-summary-card">
-        <div><span>CARTES EXPLOITABLES V4.3</span><h2>Tout est cliquable, visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
+        <div><span>KPI CLIQUABLES V4.3.1</span><h2>Tout est cliquable, visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
         <div class="settings-chips embedded"><span>${active} app(s) active(s)</span><span>${inactive} disponible(s)</span><span>${data.offer?.syncEnabled ? 'Synchro active' : 'Mobile seul'}</span></div>
       </article>
       <div class="settings-list">${items.map(([i,t,d,img])=>`<article class="setting-item clickable-card" onclick="SuperApp.openSettings('${t}')"><div class="setting-icon">${i}</div><div><b>${t}</b><small>${d}</small></div><img class="setting-art" src="${img}" alt=""><span class="chev">›</span></article>`).join('')}</div>
@@ -1233,7 +1249,7 @@
     calendarMode:(m)=>{state.calendarMode=m;renderCalendar();},
     shiftMonth:(n)=>{const d=parseDMY(state.selectedDate)||new Date();d.setMonth(d.getMonth()+n);state.selectedDate=formatDMY(d);renderCalendar();},
     selectDate:(d)=>{state.selectedDate=d;state.calendarMode='day';renderCalendar();},
-    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor, openModuleList, openBudgetEditor, openMemberDocList
+    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor, openModuleList, openBudgetEditor, openMemberDocList, openFamilyMembersManager
   };
   init();
 })();
