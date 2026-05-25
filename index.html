@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#fff8f1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>SuperApp Famille Mobile V4.3.6 — icône météo dynamique</title>
-  <link rel="manifest" href="manifest.json?v=4.3.6" />
-  <link rel="stylesheet" href="css/app.css?v=4.3.6" />
+  <title>SuperApp Famille Mobile V4.3.7 — Paramètres fiables</title>
+  <link rel="manifest" href="manifest.json?v=4.3.7" />
+  <link rel="stylesheet" href="css/app.css?v=4.3.7" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -45,7 +45,7 @@
     <form method="dialog">
       <header class="dialog-head">
         <h2>Ajouter rapidement</h2>
-        <button class="icon-btn" value="cancel" aria-label="Fermer">✕</button>
+        <button class="icon-btn" type="button" id="closeAction" aria-label="Fermer">✕</button>
       </header>
       <div class="quick-actions" id="quickActions"></div>
     </form>
@@ -55,7 +55,7 @@
     <form id="editForm" method="dialog">
       <header class="dialog-head">
         <h2 id="editTitle">Nouvel élément</h2>
-        <button class="icon-btn" value="cancel" aria-label="Fermer">✕</button>
+        <button class="icon-btn" type="button" id="closeEdit" aria-label="Fermer">✕</button>
       </header>
       <div id="editFields" class="form-stack"></div>
       <footer class="dialog-actions">
@@ -66,6 +66,6 @@
   </dialog>
 
   <input id="importInput" type="file" accept="application/json" hidden />
-  <script src="js/app.js?v=4.3.6"></script>
+  <script src="js/app.js?v=4.3.7"></script>
 </body>
 </html>

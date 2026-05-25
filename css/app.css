@@ -232,3 +232,73 @@ body{padding:0}.app-shell{min-height:100vh;display:flex;justify-content:center}.
 .compact-alerts{grid-template-columns:1fr;gap:10px;}
 .location-toggles label{min-height:118px;}
 @media (max-width:420px){.location-city-grid{grid-template-columns:1fr;}.location-main-card{align-items:flex-start;}.location-main-card>span{width:46px;height:46px;font-size:24px;}}
+
+
+/* V4.3.7 — mode sombre réellement appliqué */
+html[data-theme="sombre"], body[data-theme="sombre"]{
+  --ink:#f8fafc;
+  --muted:#cbd5e1;
+  --bg:#0f172a;
+  --card:#172033;
+  --line:rgba(148,163,184,.25);
+  --shadow:0 18px 48px rgba(0,0,0,.36);
+  --soft:0 10px 28px rgba(0,0,0,.26);
+  --home-soft:#3a241b;
+  --food-soft:#1d3324;
+  --edu-soft:#172b47;
+  --health-soft:#3a1f2a;
+  --sport-soft:#173638;
+  --cal-soft:#20274a;
+}
+body[data-theme="sombre"]{background:linear-gradient(160deg,#0b1220,#111827);color:var(--ink)}
+body[data-theme="sombre"] .mobile-frame{background:radial-gradient(circle at 18% -8%,rgba(232,116,95,.14),transparent 34%),radial-gradient(circle at 88% 6%,rgba(81,104,199,.20),transparent 30%),linear-gradient(180deg,#111827,#0f172a 48%,#111827)}
+body[data-theme="sombre"] .card,
+body[data-theme="sombre"] .agenda-item,
+body[data-theme="sombre"] .notif-item,
+body[data-theme="sombre"] .setting-item,
+body[data-theme="sombre"] .quick-action,
+body[data-theme="sombre"] .dialog-card,
+body[data-theme="sombre"] .settings-category-card,
+body[data-theme="sombre"] .settings-reference-card,
+body[data-theme="sombre"] .settings-app-card,
+body[data-theme="sombre"] .settings-notif-card,
+body[data-theme="sombre"] .location-main-card,
+body[data-theme="sombre"] .empty{
+  background:rgba(23,32,51,.94)!important;
+  border-color:rgba(148,163,184,.24)!important;
+  color:var(--ink)!important;
+}
+body[data-theme="sombre"] .icon-btn,
+body[data-theme="sombre"] .calendar-head button,
+body[data-theme="sombre"] .day,
+body[data-theme="sombre"] .family-mini,
+body[data-theme="sombre"] .bottom-nav{
+  background:rgba(23,32,51,.92)!important;
+  color:var(--ink)!important;
+  border-color:rgba(148,163,184,.20)!important;
+}
+body[data-theme="sombre"] small,
+body[data-theme="sombre"] p,
+body[data-theme="sombre"] .topbar p,
+body[data-theme="sombre"] .form-field label,
+body[data-theme="sombre"] .agenda-item small,
+body[data-theme="sombre"] .notif-item small,
+body[data-theme="sombre"] .setting-item small{color:var(--muted)!important}
+body[data-theme="sombre"] input,
+body[data-theme="sombre"] select,
+body[data-theme="sombre"] textarea{
+  background:#0f172a!important;
+  color:var(--ink)!important;
+  border-color:rgba(148,163,184,.32)!important;
+}
+body[data-theme="sombre"] .btn.ghost,
+body[data-theme="sombre"] .chip,
+body[data-theme="sombre"] .settings-chips span{
+  background:rgba(30,41,59,.92)!important;
+  color:var(--ink)!important;
+  border-color:rgba(148,163,184,.24)!important;
+}
+body[data-theme="sombre"] .weather{background:linear-gradient(135deg,#19324d,#162033)!important}
+body[data-theme="sombre"] .app-tile p,
+body[data-theme="sombre"] .play-copy,
+body[data-theme="sombre"] .feature-card p{color:var(--muted)!important}

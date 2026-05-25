@@ -1,7 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_6_icone_meteo_dynamique';
-  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_5_meteo_auto_coherente','superapp_famille_mobile_v4_3_4_localisation_meteo','superapp_famille_mobile_v4_3_2_kpi_cliquables','superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.3.6';
+  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_7_parametres_fiables';
+  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_6_icone_meteo_dynamique','superapp_famille_mobile_v4_3_5_meteo_auto_coherente','superapp_famille_mobile_v4_3_4_localisation_meteo','superapp_famille_mobile_v4_3_3_filtres_actions','superapp_famille_mobile_v4_3_2_kpi_cliquables','superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
+  const APP_VERSION = '4.3.7';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -286,6 +286,30 @@
     return d;
   }
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+  function closeEditDialog(){
+    state.preset = null;
+    try { if($('#editDialog')?.open) $('#editDialog').close(); } catch {}
+  }
+  function closeActionDialog(){
+    try { if($('#actionDialog')?.open) $('#actionDialog').close(); } catch {}
+  }
+  function preferredTheme(){
+    const raw = data.settings?.appearance?.theme || data.settings?.theme || 'clair';
+    if(raw === 'auto') return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sombre' : 'clair';
+    return raw === 'sombre' ? 'sombre' : 'clair';
+  }
+  function applyAppearance(){
+    const raw = data.settings?.appearance?.theme || data.settings?.theme || 'clair';
+    const active = preferredTheme();
+    document.documentElement.dataset.theme = active;
+    document.body.dataset.theme = active;
+    document.body.classList.toggle('theme-dark', active === 'sombre');
+    document.body.classList.toggle('theme-light', active !== 'sombre');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', active === 'sombre' ? '#111827' : '#fff8f1');
+    const status = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if(status) status.setAttribute('content', active === 'sombre' ? 'black-translucent' : 'default');
+    return raw;
+  }
   function parseDMY(str){
     if(!str) return null;
     if(/^\d{2}-\d{2}-\d{4}$/.test(str)){ const [d,m,y]=str.split('-').map(Number); return new Date(y,m-1,d); }
@@ -365,9 +389,13 @@
   }
 
   function init(){
+    applyAppearance();
     bindNavigation(); bindDialogs(); render();
     autoRefreshWeatherOnOpen();
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./service-worker.js?v=4.3.6').catch(()=>{}); }
+    if(window.matchMedia){
+      try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyAppearance); } catch {}
+    }
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./service-worker.js?v=4.3.7').catch(()=>{}); }
   }
 
   function setView(view){
@@ -420,17 +448,19 @@
   }
 
   function bindDialogs(){
-    $('#cancelEdit').addEventListener('click',()=>{ state.preset=null; $('#editDialog').close(); });
+    $('#cancelEdit')?.addEventListener('click', closeEditDialog);
+    $('#closeEdit')?.addEventListener('click', closeEditDialog);
+    $('#closeAction')?.addEventListener('click', closeActionDialog);
     $('#editForm').addEventListener('submit', e=>{
       e.preventDefault();
       const form = new FormData(e.currentTarget);
       const type = e.currentTarget.dataset.type;
       const item = Object.fromEntries(form.entries());
       if(String(type).startsWith('settings_')){ saveSettingsForm(type,item,e.currentTarget.dataset.id || ''); return; }
-      if(type === 'settings'){ $('#editDialog').close(); return; }
+      if(type === 'settings'){ closeEditDialog(); return; }
       addItem(type,item);
       const backToList = state.returnList ? {...state.returnList} : null;
-      state.preset=null; $('#editDialog').close(); save(); render();
+      state.preset=null; closeEditDialog(); save(); render();
       if(backToList) setTimeout(()=>openModuleList(backToList.module, backToList.block), 30);
     });
     $('#importInput').addEventListener('change', async e=>{
@@ -442,6 +472,7 @@
   }
 
   function render(){
+    applyAppearance();
     renderHome(); renderCalendar(); renderApps(); renderNotifications(); renderSettings(); updateBadges();
   }
   function updateBadges(){
@@ -912,7 +943,7 @@
     const inactive = inactiveAppModules().length;
     $('#view-settings').innerHTML = `
       <article class="sync-summary-card">
-        <div><span>LOCALISATION MÉTÉO V4.3.4</span><h2>Tout est cliquable, visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
+        <div><span>PARAMÈTRES FIABLES V4.3.7</span><h2>Tout est cliquable, visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
         <div class="settings-chips embedded"><span>${active} app(s) active(s)</span><span>${inactive} disponible(s)</span><span>${data.offer?.syncEnabled ? 'Synchro active' : 'Mobile seul'}</span></div>
       </article>
       <div class="settings-list">${items.map(([i,t,d,img])=>`<article class="setting-item clickable-card" onclick="SuperApp.openSettings('${t}')"><div class="setting-icon">${i}</div><div><b>${t}</b><small>${d}</small></div><img class="setting-art" src="${img}" alt=""><span class="chev">›</span></article>`).join('')}</div>
@@ -1224,7 +1255,7 @@
     if(type==='settings_location'){
       data.foyer = {...(data.foyer||{}), city:item.city||'Eulmont', postalCode:item.postalCode||'54690', country:item.country||'France', weatherCity:item.weatherCity||item.city||'Eulmont', latitude:Number(item.latitude||data.foyer?.latitude||0)||null, longitude:Number(item.longitude||data.foyer?.longitude||0)||null, weatherAuto:item.weatherAuto==='true', useDeviceLocation:item.useDeviceLocation==='true', usefulPlaces:lineArray(item.usefulPlaces), weatherAlerts:{pluie:!!item.alert_pluie, froid:!!item.alert_froid, vent:!!item.alert_vent, neige:!!item.alert_neige, canicule:!!item.alert_canicule}, updatedAt:nowISO(), updatedFrom:'application_mobile', syncStatus:'local_only'};
       data.settings.city = data.foyer.city; data.settings.postalCode = data.foyer.postalCode; data.settings.country = data.foyer.country; data.settings.weatherCity = data.foyer.weatherCity;
-      save(); render(); showSettingsPanel('Localisation du foyer'); return;
+      save(); render(); closeEditDialog(); if(data.foyer?.weatherAuto!==false) refreshWeather({silent:true, auto:true}); return;
     }
     if(type==='settings_budget_courses'){
       data.foodBudget = {monthly:Number(item.monthly||0), spent:Number(item.spent||0), currency:item.currency || data.settings.currency || 'EUR'};
@@ -1234,30 +1265,30 @@
       const existing = data.family.find(m=>m.id===memberId);
       const record = decorateSync({...(existing||{}), ...item, id:memberId, module:'socle', type:'membre', title:item.name, statut:'actif'});
       if(existing) Object.assign(existing, record); else data.family.push(record);
-      save(); render(); showSettingsPanel('Famille'); return;
+      save(); render(); closeEditDialog(); return;
     }
     if(type==='settings_category'){
       const module = canonicalModuleId(item.module); const oldName = item.oldName || ''; const name = String(item.name||'').trim();
       if(!data.categories[module]) data.categories[module] = {};
       if(oldName && oldName !== name) delete data.categories[module][oldName];
       data.categories[module][name] = lineArray(item.children);
-      save(); render(); showSettingsPanel('Catégories',module); return;
+      save(); render(); closeEditDialog(); return;
     }
     if(type==='settings_reference'){
       const module = canonicalModuleId(item.module); const oldName = item.oldName || ''; const name = String(item.name||'').trim();
       if(!data.referenceData[module]) data.referenceData[module] = {};
       if(oldName && oldName !== name) delete data.referenceData[module][oldName];
       data.referenceData[module][name] = lineArray(item.values);
-      save(); render(); showSettingsPanel('Données par application',module); return;
+      save(); render(); closeEditDialog(); return;
     }
     if(type==='settings_notifications'){
       const prefs = {global:!!item.global, sauvegarde:!!item.sauvegarde, synchro:!!item.synchro};
       APP_MODULE_IDS.forEach(mid=>prefs[mid]=!!item[mid]); data.settings.notificationsPrefs = prefs;
-      save(); render(); showSettingsPanel('Notifications'); return;
+      save(); render(); closeEditDialog(); return;
     }
     if(type==='settings_appearance'){
       data.settings.appearance = {...(data.settings.appearance||{}), ...item}; data.settings.theme = item.theme || data.settings.theme;
-      save(); render(); showSettingsPanel('Apparence'); return;
+      save(); applyAppearance(); render(); closeEditDialog(); return;
     }
     $('#editDialog').close();
   }
@@ -1406,7 +1437,7 @@
       elements,
       documents: structuredClone(data.documents || []),
       notifications: getNotifications().map(n=>({...n, module:canonicalModuleId(n.module), syncStatus:'synced'})),
-      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_6_icone_meteo_dynamique', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
+      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_7_parametres_fiables', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
     };
   }
   function exportData(){
@@ -1415,7 +1446,7 @@
       offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), data: buildExportData()
     };
     const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-6-icone-meteo-dynamique-export.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-7-icone-meteo-dynamique-export.json'; a.click(); URL.revokeObjectURL(a.href);
   }
   function normalizeImportPayload(json){
     const payload = json?.schema === 'superapp_famille' ? {...(json.data||{}), offer:json.offer, appsRegistry:json.appsRegistry || json.data?.socle?.appsRegistry} : json;
@@ -1485,7 +1516,7 @@
     calendarMode:(m)=>{state.calendarMode=m;renderCalendar();},
     shiftMonth:(n)=>{const d=parseDMY(state.selectedDate)||new Date();d.setMonth(d.getMonth()+n);state.selectedDate=formatDMY(d);renderCalendar();},
     selectDate:(d)=>{state.selectedDate=d;state.calendarMode='day';renderCalendar();},
-    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor, openModuleList, openBudgetEditor, openMemberDocList, openFamilyMembersManager, applyWeatherCity, useCurrentPosition, refreshWeather
+    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor, openModuleList, openBudgetEditor, openMemberDocList, openFamilyMembersManager, applyWeatherCity, useCurrentPosition, refreshWeather, applyAppearance
   };
   init();
 })();
