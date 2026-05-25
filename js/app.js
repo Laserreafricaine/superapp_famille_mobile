@@ -1,7 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'superapp_famille_mobile_v4_1_parametres_autonomes';
-  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.2.0';
+  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_cartes_exploitables';
+  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
+  const APP_VERSION = '4.3.0';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -156,7 +156,7 @@
   };
 
   let data = load();
-  let state = { view:'home', calendarMode:'month', selectedDate: today, notifFilter:'all', calendarFilter:'all', activeModule:null, editing:null, preset:null }; 
+  let state = { view:'home', calendarMode:'month', selectedDate: today, notifFilter:'all', calendarFilter:'all', activeModule:null, editing:null, preset:null, returnList:null }; 
 
   const $ = sel => document.querySelector(sel);
   const $$ = sel => [...document.querySelectorAll(sel)];
@@ -196,7 +196,7 @@
   }
   function collectionRegistry(){
     return [
-      ['tasks','maison'], ['shopping','courses_repas'], ['meals','courses_repas'], ['calendarEvents','calendrier'],
+      ['tasks','maison'], ['shopping','courses_repas'], ['meals','courses_repas'], ['weeklyMeals','courses_repas'], ['stock','courses_repas'], ['calendarEvents','calendrier'],
       ['homework','education'], ['schoolDocs','education'], ['grades','education'],
       ['health','sante'], ['vaccines','sante'], ['healthDocs','sante'], ['emergency','sante'],
       ['sports','sport_loisirs'], ['sportGear','sport_loisirs'], ['familyDocuments','familles'], ['documents','calendrier']
@@ -219,9 +219,9 @@
   function targetCollectionFor(module,type){
     module = canonicalModuleId(module);
     if(module==='maison') return 'tasks';
-    if(module==='courses_repas') return type === 'course' ? 'shopping' : 'meals';
+    if(module==='courses_repas') return type === 'stock' ? 'stock' : (type === 'repas_semaine' ? 'weeklyMeals' : (type === 'course' ? 'shopping' : 'meals'));
     if(module==='education') return type === 'document_ecole' ? 'schoolDocs' : (type === 'note' ? 'grades' : 'homework');
-    if(module==='sante') return type === 'vaccin' ? 'vaccines' : (type === 'document_sante' ? 'healthDocs' : 'health');
+    if(module==='sante') return type === 'urgence_sante' ? 'emergency' : (type === 'vaccin' ? 'vaccines' : (type === 'document_sante' ? 'healthDocs' : 'health'));
     if(module==='sport_loisirs') return ['materiel_sport','document_sport'].includes(type) ? 'sportGear' : 'sports';
     if(module==='familles') return 'familyDocuments';
     return 'calendarEvents';
@@ -352,7 +352,9 @@
       if(String(type).startsWith('settings_')){ saveSettingsForm(type,item,e.currentTarget.dataset.id || ''); return; }
       if(type === 'settings'){ $('#editDialog').close(); return; }
       addItem(type,item);
+      const backToList = state.returnList ? {...state.returnList} : null;
       state.preset=null; $('#editDialog').close(); save(); render();
+      if(backToList) setTimeout(()=>openModuleList(backToList.module, backToList.block), 30);
     });
     $('#importInput').addEventListener('change', async e=>{
       const file = e.target.files[0]; if(!file) return;
@@ -453,6 +455,7 @@
   function renderApps(){ $('#view-apps').innerHTML = `<article class="apps-hero"><div><span>Applications famille</span><h2>Écosystème modulaire</h2><p>Chaque application peut fonctionner seule, puis se connecter au cockpit mobile et au cockpit ordinateur selon l’offre.</p></div><img src="assets/images/mobile/superapp.png" alt="" onerror="this.style.display='none'" /></article><div class="app-grid large">${modules.map(moduleTileLarge).join('')}</div>`; }
 
   function openModule(id, focusKey=''){
+    state.returnList = null;
     id = canonicalModuleId(id);
     if(!ensureActiveAccess(id)) return;
     const m=moduleById(id); if(id==='calendrier'){ setView('calendar'); return; }
@@ -513,12 +516,12 @@
     const lowStock = data.stock.filter(x=>(x.level||'').toLowerCase()==='faible');
     return `
       ${moduleKpis([[meal.title,'menu du jour'],[data.weeklyMeals.length,'menus semaine'],[data.shopping.filter(x=>x.status!=='done').length,'courses'],[lowStock.length,'stock faible']])}
-      ${playfulBlock({title:'Menu du jour', block:'menu_du_jour', onClick:`SuperApp.openAdd('courses_repas','repas','Repas')`, emoji:'🍽️', img:cardImg('courses_menu_jour.png'), tone:'food tone-food-1', kicker:'Repas', action:`<button class="link-btn" onclick="SuperApp.openAdd('courses_repas','repas','Repas')">Modifier</button>`, body:`<article class="feature-card food-feature embedded"><div><span>Repas prévu</span><h3>${meal.title}</h3><p>${meal.type || 'Dîner'} · ingrédients à préparer depuis la liste de courses.</p></div></article>`})}
-      ${playfulBlock({title:'Menu de la semaine', block:'menu_de_la_semaine', onClick:`SuperApp.openCalendarModule('courses_repas')`, emoji:'📅', img:cardImg('courses_menu_semaine.png'), tone:'food tone-food-2', kicker:'7 jours', body:`<div class="week-menu playful-week">${weekDays().map((d,i)=>{ const m=mealForDay(i); return `<article><b>${d.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')}</b><small>${shortDate(formatDMY(d))}</small><strong>${m.title}</strong><em>${m.type || 'Repas'}</em></article>`; }).join('')}</div>`})}
-      ${playfulBlock({title:'Liste des courses', block:'liste_des_courses', onClick:`SuperApp.openAdd('courses_repas','course','Courses')`, emoji:'🛒', img:cardImg('courses_liste.png'), tone:'food tone-food-3', kicker:'À cocher', action:`<button class="link-btn" onclick="SuperApp.openAdd('courses_repas','course','Courses')">+ Ajouter</button>`, body:rowList(data.shopping,'🛒','Courses')})}
-      ${playfulBlock({title:'Stock maison', block:'stock_maison', onClick:`SuperApp.openSettings('stock','courses_repas')`, emoji:'🧺', img:cardImg('courses_stock.png'), tone:'food tone-food-4', kicker:'Frigo · placard', body:`<div class="stock-grid">${data.stock.map(x=>`<article class="stock-card ${String(x.level).toLowerCase()==='faible'?'alert':''}"><b>${x.title}</b><small>${x.qty} · ${x.place}</small><span>${x.level}</span></article>`).join('')}</div>`})}
-      ${playfulBlock({title:'Alertes utiles', block:'alertes_utiles', onClick:`SuperApp.setView('notifications')`, emoji:'⚠️', img:cardImg('courses_alertes.png'), tone:'food tone-food-6', kicker:'Rappels', body:`<div class="settings-chips embedded">${lowStock.length ? lowStock.map(x=>`<span>Stock faible : ${x.title}</span>`).join('') : '<span>Aucun stock faible</span>'}<span>Doublons à surveiller</span><span>Produits urgents</span></div>`})}
-      ${playfulBlock({title:'Budget courses', block:'budget_courses', onClick:`SuperApp.openSettings('budget','courses_repas')`, emoji:'💶', img:cardImg('courses_budget.png'), tone:'food tone-food-5', kicker:'Suivi', body:`<article class="budget-card embedded"><div><b>${currency(budget.spent)}</b><small>dépensé sur ${currency(budget.monthly)}</small></div><progress value="${budget.spent}" max="${budget.monthly || 1}"></progress><strong>Reste ${currency((budget.monthly||0)-(budget.spent||0))}</strong></article>`})}
+      ${playfulBlock({title:'Menu du jour', block:'menu_du_jour', onClick:`SuperApp.openModuleList('courses_repas','menu_du_jour')`, emoji:'🍽️', img:cardImg('courses_menu_jour.png'), tone:'food tone-food-1', kicker:'Repas', action:`<button class="link-btn" onclick="SuperApp.openModuleList('courses_repas','menu_du_jour')">Modifier</button>`, body:`<article class="feature-card food-feature embedded"><div><span>Repas prévu</span><h3>${meal.title}</h3><p>${meal.type || 'Dîner'} · ingrédients à préparer depuis la liste de courses.</p></div></article>`})}
+      ${playfulBlock({title:'Menu de la semaine', block:'menu_de_la_semaine', onClick:`SuperApp.openModuleList('courses_repas','menu_de_la_semaine')`, emoji:'📅', img:cardImg('courses_menu_semaine.png'), tone:'food tone-food-2', kicker:'7 jours', body:`<div class="week-menu playful-week">${weekDays().map((d,i)=>{ const m=mealForDay(i); return `<article><b>${d.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')}</b><small>${shortDate(formatDMY(d))}</small><strong>${m.title}</strong><em>${m.type || 'Repas'}</em></article>`; }).join('')}</div>`})}
+      ${playfulBlock({title:'Liste des courses', block:'liste_des_courses', onClick:`SuperApp.openModuleList('courses_repas','liste_des_courses')`, emoji:'🛒', img:cardImg('courses_liste.png'), tone:'food tone-food-3', kicker:'À cocher', action:`<button class="link-btn" onclick="SuperApp.openModuleList('courses_repas','liste_des_courses')">+ Ajouter</button>`, body:rowList(data.shopping,'🛒','Courses')})}
+      ${playfulBlock({title:'Stock maison', block:'stock_maison', onClick:`SuperApp.openModuleList('courses_repas','stock_maison')`, emoji:'🧺', img:cardImg('courses_stock.png'), tone:'food tone-food-4', kicker:'Frigo · placard', body:`<div class="stock-grid">${data.stock.map(x=>`<article class="stock-card ${String(x.level).toLowerCase()==='faible'?'alert':''}"><b>${x.title}</b><small>${x.qty} · ${x.place}</small><span>${x.level}</span></article>`).join('')}</div>`})}
+      ${playfulBlock({title:'Alertes utiles', block:'alertes_utiles', onClick:`SuperApp.openModuleList('courses_repas','alertes_utiles')`, emoji:'⚠️', img:cardImg('courses_alertes.png'), tone:'food tone-food-6', kicker:'Rappels', body:`<div class="settings-chips embedded">${lowStock.length ? lowStock.map(x=>`<span>Stock faible : ${x.title}</span>`).join('') : '<span>Aucun stock faible</span>'}<span>Doublons à surveiller</span><span>Produits urgents</span></div>`})}
+      ${playfulBlock({title:'Budget courses', block:'budget_courses', onClick:`SuperApp.openModuleList('courses_repas','budget_courses')`, emoji:'💶', img:cardImg('courses_budget.png'), tone:'food tone-food-5', kicker:'Suivi', body:`<article class="budget-card embedded"><div><b>${currency(budget.spent)}</b><small>dépensé sur ${currency(budget.monthly)}</small></div><progress value="${budget.spent}" max="${budget.monthly || 1}"></progress><strong>Reste ${currency((budget.monthly||0)-(budget.spent||0))}</strong></article>`})}
       ${playfulPreview('courses_repas','repas',cardImg('courses_calendrier_repas.png'),'food tone-food-2')}
       ${playfulSettings('courses_repas','Courses',cardImg('courses_parametres.png'),'food tone-food-4')}`;
   }
@@ -526,21 +529,21 @@
     const overdue = data.tasks.filter(x=>x.status!=='done' && x.date && daysDiff(today,x.date)<0);
     const todayTasks = data.tasks.filter(x=>x.date===today && x.status!=='done');
     return `${moduleKpis([[todayTasks.length,'tâches du jour'],[overdue.length,'en retard'],[data.family.length,'membres'],['Oui','récurrences']])}
-      ${playfulBlock({title:'Tâches du jour', block:'taches_du_jour', onClick:`SuperApp.openAdd('maison','tache','Ménage')`, emoji:'🏠', img:cardImg('maison_taches.png'), tone:'home tone-home-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openAdd('maison','tache','Ménage')">+ Ajouter</button>`, body:rowList(todayTasks.length?todayTasks:data.tasks,'🏠','Maison')})}
-      ${playfulBlock({title:'Routines', block:'routines', onClick:`SuperApp.openSettings('routines','maison')`, emoji:'🔁', img:cardImg('maison_routines.png'), tone:'home tone-home-2', kicker:'Habitudes', body:`<div class="settings-chips embedded"><span>Matin</span><span>Soir</span><span>Ménage</span><span>Linge</span><span>Préparation école</span></div>`})}
+      ${playfulBlock({title:'Tâches du jour', block:'taches_du_jour', onClick:`SuperApp.openModuleList('maison','taches_du_jour')`, emoji:'🏠', img:cardImg('maison_taches.png'), tone:'home tone-home-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openModuleList('maison','taches_du_jour')">+ Ajouter</button>`, body:rowList(todayTasks.length?todayTasks:data.tasks,'🏠','Maison')})}
+      ${playfulBlock({title:'Routines', block:'routines', onClick:`SuperApp.openModuleList('maison','routines')`, emoji:'🔁', img:cardImg('maison_routines.png'), tone:'home tone-home-2', kicker:'Habitudes', body:`<div class="settings-chips embedded"><span>Matin</span><span>Soir</span><span>Ménage</span><span>Linge</span><span>Préparation école</span></div>`})}
       ${playfulBlock({title:'Répartition famille', block:'repartition_famille', onClick:`SuperApp.openModule('familles')`, emoji:'👨‍👩‍👧‍👦', img:cardImg('maison_repartition.png'), tone:'home tone-home-3', kicker:'Famille canonique', body:`<div class="settings-chips embedded">${data.family.slice(0,5).map(m=>`<span>${m.name.split(' ')[0]} · ${data.tasks.filter(t=>t.member===m.id).length}</span>`).join('')}</div>`})}
-      ${playfulBlock({title:'Urgences maison', block:'urgences_maison', onClick:`SuperApp.setView('notifications')`, emoji:'⚠️', img:cardImg('maison_urgences.png'), tone:'home tone-home-4', kicker:'Priorité', body:`<div class="settings-chips embedded">${overdue.length ? overdue.map(x=>`<span>${x.title}</span>`).join('') : '<span>Aucune urgence maison</span>'}<span>Réparation</span><span>Administratif</span></div>`})}
-      ${playfulBlock({title:'Entretien', block:'entretien', onClick:`SuperApp.openSettings('categories','maison')`, emoji:'🛠️', img:cardImg('maison_entretien.png'), tone:'home tone-home-5', kicker:'Suivi', body:`<div class="settings-chips embedded"><span>Plomberie</span><span>Électricité</span><span>Jardin</span><span>Assurance</span></div>`})}
-      ${playfulBlock({title:'Stock / rangement maison', block:'stock_rangement_maison', onClick:`SuperApp.openSettings('categories','maison')`, emoji:'🧺', img:cardImg('maison_stock_rangement.png'), tone:'home tone-home-6', kicker:'Organisation', body:`<div class="settings-chips embedded"><span>Placards</span><span>Linge</span><span>Produits maison</span><span>Rangement</span></div>`})}
+      ${playfulBlock({title:'Urgences maison', block:'urgences_maison', onClick:`SuperApp.openModuleList('maison','urgences_maison')`, emoji:'⚠️', img:cardImg('maison_urgences.png'), tone:'home tone-home-4', kicker:'Priorité', body:`<div class="settings-chips embedded">${overdue.length ? overdue.map(x=>`<span>${x.title}</span>`).join('') : '<span>Aucune urgence maison</span>'}<span>Réparation</span><span>Administratif</span></div>`})}
+      ${playfulBlock({title:'Entretien', block:'entretien', onClick:`SuperApp.openModuleList('maison','entretien')`, emoji:'🛠️', img:cardImg('maison_entretien.png'), tone:'home tone-home-5', kicker:'Suivi', body:`<div class="settings-chips embedded"><span>Plomberie</span><span>Électricité</span><span>Jardin</span><span>Assurance</span></div>`})}
+      ${playfulBlock({title:'Stock / rangement maison', block:'stock_rangement_maison', onClick:`SuperApp.openModuleList('maison','stock_rangement_maison')`, emoji:'🧺', img:cardImg('maison_stock_rangement.png'), tone:'home tone-home-6', kicker:'Organisation', body:`<div class="settings-chips embedded"><span>Placards</span><span>Linge</span><span>Produits maison</span><span>Rangement</span></div>`})}
       ${playfulPreview('maison','Maison',cardImg('maison_calendrier.png'),'home tone-home-2')}`;
   }
   function educationModuleContent(){
     return `${moduleKpis([[data.homework.length,'devoirs'],[data.schoolDocs.length,'documents'],[data.grades.length,'notes'],[data.family.filter(m=>m.role==='Enfant').length,'enfants']])}
-      ${playfulBlock({title:'Devoirs', block:'devoirs', onClick:`SuperApp.openAdd('education','devoir','Devoirs')`, emoji:'📘', img:cardImg('education_devoirs.png'), tone:'edu tone-edu-1', kicker:'À faire', action:`<button class="link-btn" onclick="SuperApp.openAdd('education','devoir','Devoirs')">+ Ajouter</button>`, body:rowList(data.homework,'📘','Éducation')})}
-      ${playfulBlock({title:'Contrôles', block:'controles', onClick:`SuperApp.openAdd('education','devoir','Devoirs')`, emoji:'📝', img:cardImg('education_controles.png'), tone:'edu tone-edu-2', kicker:'Révisions', body:`<div class="settings-chips embedded"><span>Maths</span><span>Français</span><span>Histoire</span><span>À planifier</span></div>`})}
-      ${playfulBlock({title:'Documents école', block:'documents_ecole', onClick:`SuperApp.openAdd('education','document_ecole','Documents école')`, emoji:'📄', img:cardImg('education_documents.png'), tone:'edu tone-edu-3', kicker:'À signer', body:rowList(data.schoolDocs,'📄','Document école')})}
-      ${playfulBlock({title:'Notes & appréciations', block:'notes_appreciations', onClick:`SuperApp.openAdd('education','note','Notes')`, emoji:'⭐', img:cardImg('education_notes.png'), tone:'edu tone-edu-4', kicker:'Suivi', body:rowList(data.grades,'⭐','Note')})}
-      ${playfulBlock({title:'Activités scolaires', block:'activites_scolaires', onClick:`SuperApp.openAdd('education','devoir','Activités scolaires')`, emoji:'🎒', img:cardImg('education_activites.png'), tone:'edu tone-edu-5', kicker:'École', body:`<div class="settings-chips embedded"><span>Sorties</span><span>Réunions</span><span>Matériel</span><span>Inscriptions</span></div>`})}
+      ${playfulBlock({title:'Devoirs', block:'devoirs', onClick:`SuperApp.openModuleList('education','devoirs')`, emoji:'📘', img:cardImg('education_devoirs.png'), tone:'edu tone-edu-1', kicker:'À faire', action:`<button class="link-btn" onclick="SuperApp.openModuleList('education','devoirs')">+ Ajouter</button>`, body:rowList(data.homework,'📘','Éducation')})}
+      ${playfulBlock({title:'Contrôles', block:'controles', onClick:`SuperApp.openModuleList('education','controles')`, emoji:'📝', img:cardImg('education_controles.png'), tone:'edu tone-edu-2', kicker:'Révisions', body:`<div class="settings-chips embedded"><span>Maths</span><span>Français</span><span>Histoire</span><span>À planifier</span></div>`})}
+      ${playfulBlock({title:'Documents école', block:'documents_ecole', onClick:`SuperApp.openModuleList('education','documents_ecole')`, emoji:'📄', img:cardImg('education_documents.png'), tone:'edu tone-edu-3', kicker:'À signer', body:rowList(data.schoolDocs,'📄','Document école')})}
+      ${playfulBlock({title:'Notes & appréciations', block:'notes_appreciations', onClick:`SuperApp.openModuleList('education','notes_appreciations')`, emoji:'⭐', img:cardImg('education_notes.png'), tone:'edu tone-edu-4', kicker:'Suivi', body:rowList(data.grades,'⭐','Note')})}
+      ${playfulBlock({title:'Activités scolaires', block:'activites_scolaires', onClick:`SuperApp.openModuleList('education','activites_scolaires')`, emoji:'🎒', img:cardImg('education_activites.png'), tone:'edu tone-edu-5', kicker:'École', body:`<div class="settings-chips embedded"><span>Sorties</span><span>Réunions</span><span>Matériel</span><span>Inscriptions</span></div>`})}
       ${playfulPreview('education','Éducation',cardImg('education_calendrier.png'),'edu tone-edu-2')}`;
   }
   function healthModuleContent(){
@@ -548,24 +551,24 @@
     const meds = data.health.filter(x=>x.type==='medication');
     const treatments = data.health.filter(x=>x.category==='Traitements' || x.type==='medication');
     return `${moduleKpis([[meds.length,'médicaments'],[appts.length,'rendez-vous'],[data.vaccines.length,'vaccins'],[data.healthDocs.length,'documents']])}
-      ${playfulBlock({title:'Santé aujourd’hui', block:'sante_aujourdhui', onClick:`SuperApp.openAdd('sante','medicament','Traitements')`, emoji:'❤️', img:cardImg('sante_aujourdhui.png'), tone:'health tone-health-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openAdd('sante','medicament','Traitements')">+ Ajouter</button>`, body:rowList(data.health,xIconHealth(),'Santé')})}
-      ${playfulBlock({title:'Médicaments', block:'medicaments', onClick:`SuperApp.openAdd('sante','medicament','Traitements')`, emoji:'💊', img:cardImg('sante_medicaments.png'), tone:'health tone-health-2', kicker:'Prises', body:rowList(meds,'💊','Médicament','Aucun médicament prévu.')})}
-      ${playfulBlock({title:'Traitements', block:'traitements', onClick:`SuperApp.openAdd('sante','medicament','Traitements')`, emoji:'🧾', img:cardImg('sante_traitements.png'), tone:'health tone-health-3', kicker:'Suivi', body:rowList(treatments,'🧾','Traitement','Aucun traitement en cours.')})}
-      ${playfulBlock({title:'Rendez-vous médicaux', block:'rendez_vous_medicaux', onClick:`SuperApp.openAdd('sante','rendez_vous_medical','Rendez-vous')`, emoji:'🩺', img:cardImg('sante_rdv.png'), tone:'health tone-health-4', kicker:'Planning médical', body:rowList(appts,'🩺','Rendez-vous','Aucun rendez-vous médical.')})}
-      ${playfulBlock({title:'Vaccins', block:'vaccins', onClick:`SuperApp.openAdd('sante','vaccin','Vaccins')`, emoji:'💉', img:cardImg('sante_vaccins.png'), tone:'health tone-health-5', kicker:'Carnet', body:rowList(data.vaccines,'💉','Vaccin')})}
-      ${playfulBlock({title:'Documents santé', block:'documents_sante', onClick:`SuperApp.openAdd('sante','document_sante','Documents santé')`, emoji:'📁', img:cardImg('sante_documents.png'), tone:'health tone-health-6', kicker:'Dossiers', body:rowList(data.healthDocs,'📄','Document santé')})}
-      ${playfulBlock({title:'Urgences', block:'urgences', onClick:`SuperApp.openSettings('urgences','sante')`, emoji:'🚨', img:cardImg('sante_urgences.png'), tone:'health tone-health-7', kicker:'Important', body:`<div class="agenda-list embedded">${data.emergency.map(x=>`<article class="agenda-item"><div class="agenda-icon">🚑</div><div><b>${x.title}</b><small>${x.desc || 'Contacts et informations utiles'}</small></div></article>`).join('')}</div>`})}`;
+      ${playfulBlock({title:'Santé aujourd’hui', block:'sante_aujourdhui', onClick:`SuperApp.openModuleList('sante','sante_aujourdhui')`, emoji:'❤️', img:cardImg('sante_aujourdhui.png'), tone:'health tone-health-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openModuleList('sante','medicaments')">+ Ajouter</button>`, body:rowList(data.health,xIconHealth(),'Santé')})}
+      ${playfulBlock({title:'Médicaments', block:'medicaments', onClick:`SuperApp.openModuleList('sante','medicaments')`, emoji:'💊', img:cardImg('sante_medicaments.png'), tone:'health tone-health-2', kicker:'Prises', body:rowList(meds,'💊','Médicament','Aucun médicament prévu.')})}
+      ${playfulBlock({title:'Traitements', block:'traitements', onClick:`SuperApp.openModuleList('sante','traitements')`, emoji:'🧾', img:cardImg('sante_traitements.png'), tone:'health tone-health-3', kicker:'Suivi', body:rowList(treatments,'🧾','Traitement','Aucun traitement en cours.')})}
+      ${playfulBlock({title:'Rendez-vous médicaux', block:'rendez_vous_medicaux', onClick:`SuperApp.openModuleList('sante','rendez_vous_medicaux')`, emoji:'🩺', img:cardImg('sante_rdv.png'), tone:'health tone-health-4', kicker:'Planning médical', body:rowList(appts,'🩺','Rendez-vous','Aucun rendez-vous médical.')})}
+      ${playfulBlock({title:'Vaccins', block:'vaccins', onClick:`SuperApp.openModuleList('sante','vaccins')`, emoji:'💉', img:cardImg('sante_vaccins.png'), tone:'health tone-health-5', kicker:'Carnet', body:rowList(data.vaccines,'💉','Vaccin')})}
+      ${playfulBlock({title:'Documents santé', block:'documents_sante', onClick:`SuperApp.openModuleList('sante','documents_sante')`, emoji:'📁', img:cardImg('sante_documents.png'), tone:'health tone-health-6', kicker:'Dossiers', body:rowList(data.healthDocs,'📄','Document santé')})}
+      ${playfulBlock({title:'Urgences', block:'urgences', onClick:`SuperApp.openModuleList('sante','urgences')`, emoji:'🚨', img:cardImg('sante_urgences.png'), tone:'health tone-health-7', kicker:'Important', body:`<div class="agenda-list embedded">${data.emergency.map(x=>`<article class="agenda-item"><div class="agenda-icon">🚑</div><div><b>${x.title}</b><small>${x.desc || 'Contacts et informations utiles'}</small></div></article>`).join('')}</div>`})}`;
   }
   function xIconHealth(){ return '💗'; }
   function sportModuleContent(){
     return `${moduleKpis([[data.sports.length,'activités'],[data.sportGear.length,'matériel/documents'],['Oui','clubs & lieux'],['Oui','sorties']])}
-      ${playfulBlock({title:'Activités du jour', block:'activites_du_jour', onClick:`SuperApp.openAdd('sport_loisirs','activite','Sport')`, emoji:'⚽', img:cardImg('sport_activites.png'), tone:'sport tone-sport-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openAdd('sport_loisirs','activite','Sport')">+ Ajouter</button>`, body:rowList(data.sports,'⚽','Sport / loisirs')})}
-      ${playfulBlock({title:'Sorties familiales', block:'sorties_familiales', onClick:`SuperApp.openAdd('sport_loisirs','activite','Sport')`, emoji:'🎡', img:cardImg('sport_sorties.png'), tone:'sport tone-sport-2', kicker:'Famille canonique', body:`<div class="settings-chips embedded"><span>Parc</span><span>Cinéma</span><span>Restaurant</span><span>Week-end</span></div>`})}
-      ${playfulBlock({title:'Clubs & lieux', block:'clubs_lieux', onClick:`SuperApp.openSettings('categories','sport_loisirs')`, emoji:'📍', img:cardImg('sport_clubs.png'), tone:'sport tone-sport-3', kicker:'Repères', body:`<div class="settings-chips embedded"><span>Football</span><span>Danse</span><span>Natation</span><span>Cinéma</span><span>Parc</span></div>`})}
-      ${playfulBlock({title:'Matériel', block:'materiel', onClick:`SuperApp.openAdd('sport_loisirs','materiel_sport','Matériel')`, emoji:'🎒', img:cardImg('sport_materiel.png'), tone:'sport tone-sport-4', kicker:'À préparer', body:rowList(data.sportGear,'🎒','Matériel')})}
-      ${playfulBlock({title:'Documents sport', block:'documents_sport', onClick:`SuperApp.openAdd('sport_loisirs','document_sport','Documents')`, emoji:'📄', img:cardImg('sport_documents.png'), tone:'sport tone-sport-5', kicker:'Dossier', body:`<div class="settings-chips embedded"><span>Licence</span><span>Certificat médical</span><span>Assurance</span><span>Inscription</span></div>`})}
+      ${playfulBlock({title:'Activités du jour', block:'activites_du_jour', onClick:`SuperApp.openModuleList('sport_loisirs','activites_du_jour')`, emoji:'⚽', img:cardImg('sport_activites.png'), tone:'sport tone-sport-1', kicker:'Aujourd’hui', action:`<button class="link-btn" onclick="SuperApp.openModuleList('sport_loisirs','activites_du_jour')">+ Ajouter</button>`, body:rowList(data.sports,'⚽','Sport / loisirs')})}
+      ${playfulBlock({title:'Sorties familiales', block:'sorties_familiales', onClick:`SuperApp.openModuleList('sport_loisirs','sorties_familiales')`, emoji:'🎡', img:cardImg('sport_sorties.png'), tone:'sport tone-sport-2', kicker:'Famille canonique', body:`<div class="settings-chips embedded"><span>Parc</span><span>Cinéma</span><span>Restaurant</span><span>Week-end</span></div>`})}
+      ${playfulBlock({title:'Clubs & lieux', block:'clubs_lieux', onClick:`SuperApp.openModuleList('sport_loisirs','clubs_lieux')`, emoji:'📍', img:cardImg('sport_clubs.png'), tone:'sport tone-sport-3', kicker:'Repères', body:`<div class="settings-chips embedded"><span>Football</span><span>Danse</span><span>Natation</span><span>Cinéma</span><span>Parc</span></div>`})}
+      ${playfulBlock({title:'Matériel', block:'materiel', onClick:`SuperApp.openModuleList('sport_loisirs','materiel')`, emoji:'🎒', img:cardImg('sport_materiel.png'), tone:'sport tone-sport-4', kicker:'À préparer', body:rowList(data.sportGear,'🎒','Matériel')})}
+      ${playfulBlock({title:'Documents sport', block:'documents_sport', onClick:`SuperApp.openModuleList('sport_loisirs','documents_sport')`, emoji:'📄', img:cardImg('sport_documents.png'), tone:'sport tone-sport-5', kicker:'Dossier', body:`<div class="settings-chips embedded"><span>Licence</span><span>Certificat médical</span><span>Assurance</span><span>Inscription</span></div>`})}
       ${playfulPreview('sport_loisirs','Sport',cardImg('sport_calendrier.png'),'sport tone-sport-3')}
-      ${playfulBlock({title:'Alertes / rappels Sport', block:'alertes_rappels_sport', onClick:`SuperApp.setView('notifications')`, emoji:'🔔', img:cardImg('sport_alertes.png'), tone:'sport tone-sport-6', kicker:'Rappels', body:`<div class="settings-chips embedded"><span>Activité aujourd’hui</span><span>Matériel à préparer</span><span>Document à fournir</span></div>`})}`;
+      ${playfulBlock({title:'Alertes / rappels Sport', block:'alertes_rappels_sport', onClick:`SuperApp.openModuleList('sport_loisirs','alertes_rappels_sport')`, emoji:'🔔', img:cardImg('sport_alertes.png'), tone:'sport tone-sport-6', kicker:'Rappels', body:`<div class="settings-chips embedded"><span>Activité aujourd’hui</span><span>Matériel à préparer</span><span>Document à fournir</span></div>`})}`;
   }
   function familyModuleContent(){
     const adults = data.family.filter(m=>m.role !== 'Enfant').length;
@@ -573,7 +576,7 @@
     return `${moduleKpis([[data.family.length,'membres'],[adults,'adultes'],[children,'enfants'],['1 par membre','dossier']])}
       ${playfulBlock({title:'Espace famille', emoji:'👨‍👩‍👧‍👦', img:cardImg('familles_dossier.png'), tone:'family tone-family-1', kicker:'Famille canonique', body:`<p class="play-copy">Chaque personne dispose de sa carte, de ses informations utiles et de son propre dossier administratif : identité, passeport, diplômes, santé, scolarité et assurances.</p>`})}
       <div class="family-spaces">${data.family.map(memberCard).join('')}</div>
-      ${playfulBlock({title:'Fonctions documentaires à prévoir', block:'documents_famille', onClick:`SuperApp.openAdd('familles','document_famille','Administratif')`, emoji:'📁', img:cardImg('familles_identite.png'), tone:'family tone-family-2', kicker:'Import futur', action:`<button class="link-btn" disabled>Import futur</button>`, body:`<div class="settings-chips embedded"><span>Import fichiers</span><span>Classement par membre</span><span>Date d’expiration</span><span>Rappels renouvellement</span><span>Synchro cockpit</span></div>`})}
+      ${playfulBlock({title:'Fonctions documentaires à prévoir', block:'documents_famille', onClick:`SuperApp.openModuleList('familles','documents_famille')`, emoji:'📁', img:cardImg('familles_identite.png'), tone:'family tone-family-2', kicker:'Import futur', action:`<button class="link-btn" disabled>Import futur</button>`, body:`<div class="settings-chips embedded"><span>Import fichiers</span><span>Classement par membre</span><span>Date d’expiration</span><span>Rappels renouvellement</span><span>Synchro cockpit</span></div>`})}
       ${playfulSettings('familles','Familles',cardImg('settings_categories.png'),'family tone-family-3')}`;
   }
   function ageFromBirth(birth){
@@ -626,10 +629,104 @@
       ['📚','Scolarité','Scolarité'],
       ['🛡️','Assurances','Administratif']
     ];
-    return tiles.map(([icon,title,category])=>`<button class="member-doc-tile" type="button" onclick="SuperApp.openAdd('familles','document_famille', '${category}', '${title} — ${m.name}')"><span>${icon}</span><b>${title}</b><small>${category}</small></button>`);
+    return tiles.map(([icon,title,category])=>`<button class="member-doc-tile" type="button" onclick="SuperApp.openMemberDocList('${m.id}','${category}','${title}')"><span>${icon}</span><b>${title}</b><small>${category}</small></button>`);
   }
   function docCard(d){
     return `<article class="doc-card"><div class="agenda-icon">📄</div><div><b>${d.title}</b><small>${d.desc || d.category}</small></div><span>Prévu</span></article>`;
+  }
+
+
+  const MODULE_LISTS = {
+    maison: {
+      taches_du_jour:{title:'Tâches du jour', emoji:'🏠', img:cardImg('maison_taches.png'), collection:'tasks', type:'tache', category:'Ménage', filter:x=>x.date===today || x.category==='Ménage', help:'Liste des tâches du jour avec ajout, modification et suppression.'},
+      routines:{title:'Routines', emoji:'🔁', img:cardImg('maison_routines.png'), collection:'tasks', type:'tache', category:'Routine', help:'Routines du matin, du soir, linge, ménage et préparation école.'},
+      urgences_maison:{title:'Urgences maison', emoji:'⚠️', img:cardImg('maison_urgences.png'), collection:'tasks', type:'tache', category:'Urgence maison', help:'Réparations, pannes, démarches urgentes et points à ne pas oublier.'},
+      entretien:{title:'Entretien', emoji:'🛠️', img:cardImg('maison_entretien.png'), collection:'tasks', type:'tache', category:'Entretien', help:'Plomberie, électricité, jardin, assurance et entretien courant.'},
+      stock_rangement_maison:{title:'Stock / rangement maison', emoji:'🧺', img:cardImg('maison_stock_rangement.png'), collection:'tasks', type:'tache', category:'Rangement', help:'Placards, linge, produits maison et rangement familial.'}
+    },
+    courses_repas: {
+      menu_du_jour:{title:'Menu du jour', emoji:'🍽️', img:cardImg('courses_menu_jour.png'), collection:'meals', type:'repas', category:'Repas', filter:x=>x.date===today || x.category==='Repas', help:'Repas du jour et idées de menus à préparer.'},
+      menu_de_la_semaine:{title:'Menu de la semaine', emoji:'📅', img:cardImg('courses_menu_semaine.png'), collection:'meals', type:'repas', category:'Repas', help:'Menus datés de la semaine, connectables au calendrier global.'},
+      liste_des_courses:{title:'Liste des courses', emoji:'🛒', img:cardImg('courses_liste.png'), collection:'shopping', type:'course', category:'Alimentation', help:'Liste cochable, ajouts rapides et suppression des produits.'},
+      stock_maison:{title:'Stock maison', emoji:'🧺', img:cardImg('courses_stock.png'), collection:'stock', type:'stock', category:'Stock', help:'Frigo, congélateur, placards et niveaux de stock.'},
+      alertes_utiles:{title:'Alertes utiles', emoji:'⚠️', img:cardImg('courses_alertes.png'), collection:'stock', type:'stock', category:'Stock faible', filter:x=>String(x.level||'').toLowerCase()==='faible', help:'Produits faibles, urgences courses et rappels utiles.'},
+      budget_courses:{title:'Budget courses', emoji:'💶', img:cardImg('courses_budget.png'), special:'budget', help:'Mini suivi du budget courses du mois.'}
+    },
+    education: {
+      devoirs:{title:'Devoirs', emoji:'📘', img:cardImg('education_devoirs.png'), collection:'homework', type:'devoir', category:'Devoirs', help:'Devoirs par enfant, matière, date et statut.'},
+      controles:{title:'Contrôles', emoji:'📝', img:cardImg('education_controles.png'), collection:'homework', type:'devoir', category:'Contrôles', help:'Contrôles à préparer et révisions importantes.'},
+      documents_ecole:{title:'Documents école', emoji:'📄', img:cardImg('education_documents.png'), collection:'schoolDocs', type:'document_ecole', category:'Documents école', help:'Documents à signer, assurances scolaires et autorisations.'},
+      notes_appreciations:{title:'Notes & appréciations', emoji:'⭐', img:cardImg('education_notes.png'), collection:'grades', type:'note', category:'Notes', help:'Notes, appréciations et suivi scolaire.'},
+      activites_scolaires:{title:'Activités scolaires', emoji:'🎒', img:cardImg('education_activites.png'), collection:'homework', type:'devoir', category:'Activités scolaires', help:'Sorties, réunions, matériel et inscriptions.'}
+    },
+    sante: {
+      sante_aujourdhui:{title:'Santé aujourd’hui', emoji:'❤️', img:cardImg('sante_aujourdhui.png'), collection:'health', type:'medicament', category:'Traitements', filter:x=>x.date===today || x.category==='Traitements', help:'Synthèse santé du jour : médicaments, rendez-vous et points importants.'},
+      medicaments:{title:'Médicaments', emoji:'💊', img:cardImg('sante_medicaments.png'), collection:'health', type:'medicament', category:'Traitements', filter:x=>x.type==='medication' || x.type==='medicament', help:'Médicaments et prises à suivre.'},
+      traitements:{title:'Traitements', emoji:'🧾', img:cardImg('sante_traitements.png'), collection:'health', type:'medicament', category:'Traitements', help:'Traitements en cours, échéances et notes.'},
+      rendez_vous_medicaux:{title:'Rendez-vous médicaux', emoji:'🩺', img:cardImg('sante_rdv.png'), collection:'health', type:'rendez_vous_medical', category:'Rendez-vous', filter:x=>x.type==='appointment' || x.type==='rendez_vous_medical', help:'Rendez-vous médicaux avec date, heure et membre concerné.'},
+      vaccins:{title:'Vaccins', emoji:'💉', img:cardImg('sante_vaccins.png'), collection:'vaccines', type:'vaccin', category:'Vaccins', help:'Vaccins, rappels et vérifications.'},
+      documents_sante:{title:'Documents santé', emoji:'📁', img:cardImg('sante_documents.png'), collection:'healthDocs', type:'document_sante', category:'Documents santé', help:'Ordonnances, mutuelle, certificats et documents santé.'},
+      urgences:{title:'Urgences', emoji:'🚨', img:cardImg('sante_urgences.png'), collection:'emergency', type:'urgence_sante', category:'Urgences', help:'Contacts d’urgence, pharmacie de garde et informations vitales.'}
+    },
+    sport_loisirs: {
+      activites_du_jour:{title:'Activités du jour', emoji:'⚽', img:cardImg('sport_activites.png'), collection:'sports', type:'activite', category:'Sport', filter:x=>x.date===today || x.category==='Sport', help:'Activités sportives du jour et préparation.'},
+      sorties_familiales:{title:'Sorties familiales', emoji:'🎡', img:cardImg('sport_sorties.png'), collection:'sports', type:'activite', category:'Sortie familiale', help:'Parc, cinéma, restaurant, week-end et sorties en famille.'},
+      clubs_lieux:{title:'Clubs & lieux', emoji:'📍', img:cardImg('sport_clubs.png'), collection:'sports', type:'activite', category:'Clubs & lieux', help:'Clubs, lieux d’activités et repères pratiques.'},
+      materiel:{title:'Matériel', emoji:'🎒', img:cardImg('sport_materiel.png'), collection:'sportGear', type:'materiel_sport', category:'Matériel', help:'Sacs, gourdes, chaussures, équipements et préparation.'},
+      documents_sport:{title:'Documents sport', emoji:'📄', img:cardImg('sport_documents.png'), collection:'sportGear', type:'document_sport', category:'Documents sport', help:'Licences, certificats médicaux, assurances et inscriptions.'},
+      alertes_rappels_sport:{title:'Alertes / rappels Sport', emoji:'🔔', img:cardImg('sport_alertes.png'), collection:'sports', type:'activite', category:'Rappel sport', help:'Rappels de préparation, documents à fournir et matériel.'}
+    },
+    familles: {
+      documents_famille:{title:'Documents famille', emoji:'📁', img:cardImg('familles_identite.png'), collection:'familyDocuments', type:'document_famille', category:'Administratif', help:'Documents familiaux, identité, scolarité, santé et assurances.'}
+    }
+  };
+
+  function listConfig(module, block){ return MODULE_LISTS[canonicalModuleId(module)]?.[block] || null; }
+  function visibleCollectionItems(cfg){
+    let arr = (data[cfg.collection] || []).filter(x=>!statusIsHidden(x));
+    if(cfg.filter) arr = arr.filter(cfg.filter);
+    else if(cfg.category) arr = arr.filter(x=>!x.category || x.category===cfg.category || cfg.collection==='shopping' || cfg.collection==='stock');
+    return arr;
+  }
+  function openModuleList(module, block){
+    state.returnList = {module:canonicalModuleId(module), block};
+    module = canonicalModuleId(module);
+    const cfg = listConfig(module, block);
+    if(!cfg){ openModule(module); return; }
+    if(cfg.special === 'budget'){ openBudgetBoard(); return; }
+    const m = moduleById(module);
+    const items = visibleCollectionItems(cfg);
+    const view = $('#view-apps'); setView('apps'); state.activeModule = module;
+    view.innerHTML = `<div class="module-screen-head visual-head ${m.cls}"><div><span class="eyebrow">${cfg.emoji} ${m.name}</span><h2>${cfg.title}</h2><p>${cfg.help || 'Liste exploitable avec ajout, modification et suppression.'}</p></div><img src="${cfg.img || m.image}" alt="" /></div>
+      <div class="list-toolbar-card"><button class="btn ghost" onclick="SuperApp.openModule('${module}')">← Retour ${m.short}</button><button class="btn primary" onclick="SuperApp.openAdd('${module}','${cfg.type||eventTypeForModule(module)}','${escapeAttr(cfg.category||'Général')}')">${cfg.emoji} + Ajouter</button></div>
+      <div class="management-list">${items.length ? items.map(x=>managementRow(x,cfg)).join('') : `<article class="empty cute-empty"><b>${cfg.emoji} Rien pour le moment</b><small>Ajoute un premier élément pour rendre cette carte vraiment utile.</small><button class="btn primary" onclick="SuperApp.openAdd('${module}','${cfg.type||eventTypeForModule(module)}','${escapeAttr(cfg.category||'Général')}')">+ Ajouter</button></article>`}</div>`;
+  }
+  function managementRow(x,cfg){
+    const done = statusIsDone(x);
+    return `<article class="manage-row clickable-card ${done?'done':''}" onclick="SuperApp.openItem('${x.id}')"><div class="manage-emoji">${cfg.emoji || moduleIcon(x.module)}</div><div class="manage-main"><b>${escapeHtml(x.title || x.meal || 'Élément')}</b><small>${escapeHtml(x.category || cfg.category || moduleLabel(x.module))}${x.date?' · '+shortDate(x.date):''}${x.qty?' · '+escapeHtml(x.qty):''}${x.place?' · '+escapeHtml(x.place):''}${x.time?' · '+escapeHtml(x.time):''}</small>${x.desc||x.notes?`<p>${escapeHtml(x.desc||x.notes)}</p>`:''}</div><div class="manage-actions"><button onclick="event.stopPropagation();SuperApp.openItem('${x.id}')">Modifier</button><button onclick="event.stopPropagation();SuperApp.markDone('${x.id}')">Fait</button><button class="danger" onclick="event.stopPropagation();SuperApp.deleteItem('${x.id}')">Suppr.</button></div></article>`;
+  }
+  function openBudgetBoard(){
+    const m = moduleById('courses_repas'); const budget = data.foodBudget || {monthly:0,spent:0,currency:'EUR'};
+    const view = $('#view-apps'); setView('apps');
+    view.innerHTML = `<div class="module-screen-head visual-head ${m.cls}"><div><span class="eyebrow">💶 Courses & repas</span><h2>Budget courses</h2><p>Mini suivi simple du budget courses sur mobile.</p></div><img src="${cardImg('courses_budget.png')}" alt="" /></div>
+      <article class="budget-board-card"><b>${currency(budget.spent)}</b><small>dépensé sur ${currency(budget.monthly)}</small><progress value="${budget.spent}" max="${budget.monthly || 1}"></progress><strong>Reste ${currency((budget.monthly||0)-(budget.spent||0))}</strong></article>
+      <div class="list-toolbar-card"><button class="btn ghost" onclick="SuperApp.openModule('courses_repas')">← Retour Courses</button><button class="btn primary" onclick="SuperApp.openBudgetEditor()">Modifier le budget</button></div>`;
+  }
+  function openBudgetEditor(){
+    $('#editTitle').textContent = 'Modifier le budget courses';
+    $('#editForm').dataset.type = 'settings_budget_courses'; $('#editForm').dataset.id = '';
+    const b = data.foodBudget || {monthly:0,spent:0,currency:'EUR'};
+    $('#editFields').innerHTML = `<div class="form-field"><label>Budget mensuel</label><input name="monthly" type="number" value="${Number(b.monthly||0)}"></div><div class="form-field"><label>Dépensé</label><input name="spent" type="number" value="${Number(b.spent||0)}"></div><div class="form-field"><label>Devise</label><input name="currency" value="${escapeAttr(b.currency||'EUR')}"></div>`;
+    if($('#editDialog').open) $('#editDialog').close(); $('#editDialog').showModal();
+  }
+  function openMemberDocList(memberId, category, title){
+    const member = data.family.find(m=>m.id===memberId); if(!member) return;
+    const cfg = {title:title || category, emoji:'📁', img:cardImg('familles_identite.png'), collection:'familyDocuments', type:'document_famille', category};
+    const docs = (data.familyDocuments||[]).filter(x=>!statusIsHidden(x) && (x.member===memberId || !x.member) && (!category || x.category===category));
+    const view = $('#view-apps'); setView('apps');
+    view.innerHTML = `<div class="module-screen-head visual-head module-family"><div><span class="eyebrow">${member.name}</span><h2>${cfg.emoji} ${title}</h2><p>Dossier visuel du membre, avec ajout, modification et suppression.</p></div><img src="${cfg.img}" alt="" /></div>
+      <div class="list-toolbar-card"><button class="btn ghost" onclick="SuperApp.openModule('familles')">← Retour Familles</button><button class="btn primary" onclick="SuperApp.openAdd('familles','document_famille','${escapeAttr(category)}','${escapeAttr(title)} — ${escapeAttr(member.name)}','${memberId}')">+ Ajouter</button></div>
+      <div class="management-list">${docs.length?docs.map(x=>managementRow(x,cfg)).join(''):`<article class="empty cute-empty"><b>${cfg.emoji} Aucun document</b><small>Ajoute un premier document pour ${escapeHtml(member.name)}.</small></article>`}</div>`;
   }
 
   function renderCalendar(){
@@ -685,7 +782,7 @@
     const inactive = inactiveAppModules().length;
     $('#view-settings').innerHTML = `
       <article class="sync-summary-card">
-        <div><span>VISUELS COCKPIT V4.2</span><h2>Le mobile devient plus visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
+        <div><span>CARTES EXPLOITABLES V4.3</span><h2>Tout est cliquable, visuel et mignon</h2><p>Le socle commun se règle ici. La synchronisation sert seulement à connecter et fusionner les données avec le cockpit ordinateur.</p></div>
         <div class="settings-chips embedded"><span>${active} app(s) active(s)</span><span>${inactive} disponible(s)</span><span>${data.offer?.syncEnabled ? 'Synchro active' : 'Mobile seul'}</span></div>
       </article>
       <div class="settings-list">${items.map(([i,t,d,img])=>`<article class="setting-item clickable-card" onclick="SuperApp.openSettings('${t}')"><div class="setting-icon">${i}</div><div><b>${t}</b><small>${d}</small></div><img class="setting-art" src="${img}" alt=""><span class="chev">›</span></article>`).join('')}</div>
@@ -694,6 +791,7 @@
   }
 
   function openQuickActions(){
+    state.returnList = null;
     $('#quickActions').innerHTML = [
       ['maison','🏠','Ajouter une tâche'],['courses_repas','🛒','Ajouter une course'],['calendrier','📅','Ajouter un événement'],['education','📘','Ajouter un devoir'],['sante','💊','Ajouter santé'],['sport_loisirs','⚽','Ajouter activité'],['familles','👨‍👩‍👧‍👦','Ajouter document famille']
     ].map(([id,icon,label])=>`<button class="quick-action" type="button" onclick="SuperApp.openEdit('${id}')"><span>${icon}</span>${label}</button>`).join('');
@@ -708,12 +806,15 @@
     $('#editForm').dataset.type = type;
     $('#editForm').dataset.id = id || '';
     const item = state.editing?.item || state.preset || {};
+    if(state.editing?.collection==='stock' && !item.type) item.type='stock';
+    if(state.editing?.collection==='emergency' && !item.type) item.type='urgence_sante';
+    if(state.editing?.collection==='sportGear' && !item.type) item.type = item.category==='Documents sport' ? 'document_sport' : 'materiel_sport';
     $('#editFields').innerHTML = fieldsFor(type,item);
     if($('#editDialog').open) $('#editDialog').close();
     $('#editDialog').showModal();
   }
-  function openAdd(module,type='',category='',title=''){
-    state.preset = {type, category, title};
+  function openAdd(module,type='',category='',title='',member=''){
+    state.preset = {type, category, title, member};
     openEdit(module);
   }
   function openMember(memberId){
@@ -744,8 +845,8 @@
     const notes=`<div class="form-field"><label>Notes</label><textarea name="notes" rows="3" placeholder="Notes utiles">${escapeHtml(item.notes||item.desc||'')}</textarea></div>`;
     let extra = '';
     if(type==='calendrier') extra = `<div class="form-field"><label>Envoyer dans</label><select name="targetModule">${moduleOptions(moduleValue)}</select></div><div class="form-field"><label>Type</label><select name="type"><option value="evenement" ${item.type==='evenement'?'selected':''}>Événement simple</option><option value="tache" ${item.type==='tache'?'selected':''}>Tâche</option><option value="repas" ${item.type==='repas'?'selected':''}>Repas / menu</option><option value="devoir" ${item.type==='devoir'?'selected':''}>Devoir / école</option><option value="rendez_vous_medical" ${item.type==='rendez_vous_medical'||item.type==='appointment'?'selected':''}>Rendez-vous médical</option><option value="activite" ${item.type==='activite'?'selected':''}>Activité sport / loisirs</option><option value="document" ${item.type==='document'?'selected':''}>Document / échéance</option></select></div>`;
-    if(type==='courses_repas') extra = `<div class="form-field"><label>Quantité</label><input name="qty" placeholder="Ex : 1 kg" value="${escapeAttr(item.qty||'')}"></div><input type="hidden" name="targetModule" value="courses_repas"><input type="hidden" name="type" value="${item.type || 'course'}">`;
-    if(type==='sante') extra = `<div class="form-field"><label>Type</label><select name="type"><option value="medicament" ${item.type==='medication'||item.type==='medicament'?'selected':''}>Médicament</option><option value="rendez_vous_medical" ${item.type==='appointment'||item.type==='rendez_vous_medical'?'selected':''}>Rendez-vous médical</option><option value="vaccin" ${item.type==='vaccin'?'selected':''}>Vaccin</option><option value="document_sante" ${item.type==='document_sante'?'selected':''}>Document santé</option></select></div><input type="hidden" name="targetModule" value="sante">`;
+    if(type==='courses_repas') extra = `<div class="form-field"><label>Quantité / portion</label><input name="qty" placeholder="Ex : 1 kg" value="${escapeAttr(item.qty||'')}"></div>${(item.type==='stock'||item.place||item.level)?`<div class="form-field"><label>Lieu</label><input name="place" placeholder="Frigo, placard..." value="${escapeAttr(item.place||'')}"></div><div class="form-field"><label>Niveau</label><select name="level"><option ${item.level==='Bon'?'selected':''}>Bon</option><option ${item.level==='Moyen'?'selected':''}>Moyen</option><option ${item.level==='Faible'?'selected':''}>Faible</option></select></div>`:''}<input type="hidden" name="targetModule" value="courses_repas"><input type="hidden" name="type" value="${item.type || 'course'}">`;
+    if(type==='sante') extra = `<div class="form-field"><label>Type</label><select name="type"><option value="medicament" ${item.type==='medication'||item.type==='medicament'?'selected':''}>Médicament</option><option value="rendez_vous_medical" ${item.type==='appointment'||item.type==='rendez_vous_medical'?'selected':''}>Rendez-vous médical</option><option value="vaccin" ${item.type==='vaccin'?'selected':''}>Vaccin</option><option value="document_sante" ${item.type==='document_sante'?'selected':''}>Document santé</option><option value="urgence_sante" ${item.type==='urgence_sante'?'selected':''}>Urgence / contact</option></select></div><input type="hidden" name="targetModule" value="sante">`;
     if(type==='familles') extra = `<input type="hidden" name="targetModule" value="familles"><input type="hidden" name="type" value="document_famille">`;
     if(['maison','education','sport_loisirs'].includes(type)) extra = `<input type="hidden" name="targetModule" value="${type}"><input type="hidden" name="type" value="${item.type || eventTypeForModule(type)}">`;
     const danger = item.id && !item.readonly ? `<div class="danger-actions"><button class="btn ghost" type="button" onclick="SuperApp.archiveItem('${item.id}')">Archiver</button><button class="btn ghost danger" type="button" onclick="SuperApp.deleteItem('${item.id}')">Supprimer</button></div>` : '';
@@ -780,14 +881,14 @@
   function archiveItem(id){
     const found = findRecord(id); if(!found) return;
     if(confirm('Archiver cet élément ? Il restera synchronisable et consultable.')){
-      found.item.status='archive'; found.item.statut='archive'; found.item.syncStatus='pending_delete'; touchSync(found.item); save(); $('#editDialog').close(); render();
+      found.item.status='archive'; found.item.statut='archive'; found.item.syncStatus='pending_delete'; touchSync(found.item); save(); try{$('#editDialog').close();}catch{} render();
     }
   }
   function deleteItem(id){
     const found = findRecord(id); if(!found) return;
     if(confirm('Supprimer cet élément ? Il disparaîtra de l’interface mais restera marqué pour la synchronisation.')){
       found.item.status='supprime'; found.item.statut='supprime'; found.item.syncStatus='pending_delete'; touchSync(found.item);
-      save(); $('#editDialog').close(); render();
+      save(); try{$('#editDialog').close();}catch{} render();
     }
   }
   function openItem(id){
@@ -960,7 +1061,11 @@
       <div class="settings-data-actions"><button class="btn ghost" type="button" onclick="SuperApp.exportData()"><span>📤</span><b>Exporter</b><small>Sauvegarde ou transfert</small></button><button class="btn ghost" type="button" onclick="document.getElementById('importInput').click()"><span>📥</span><b>Importer</b><small>Fusion contrôlée</small></button><button class="btn ghost danger" type="button" onclick="SuperApp.resetData()"><span>♻️</span><b>Réinitialiser</b><small>Confirmation obligatoire</small></button></div>`;
   }
   function saveSettingsForm(type,item,id=''){
-    if(type==='settings_member'){
+
+    if(type==='settings_budget_courses'){
+      data.foodBudget = {monthly:Number(item.monthly||0), spent:Number(item.spent||0), currency:item.currency || data.settings.currency || 'EUR'};
+      save(); render(); try{$('#editDialog').close();}catch{} openBudgetBoard(); return;
+    }    if(type==='settings_member'){
       const memberId = id || uid();
       const existing = data.family.find(m=>m.id===memberId);
       const record = decorateSync({...(existing||{}), ...item, id:memberId, module:'socle', type:'membre', title:item.name, statut:'actif'});
@@ -1128,7 +1233,7 @@
     calendarMode:(m)=>{state.calendarMode=m;renderCalendar();},
     shiftMonth:(n)=>{const d=parseDMY(state.selectedDate)||new Date();d.setMonth(d.getMonth()+n);state.selectedDate=formatDMY(d);renderCalendar();},
     selectDate:(d)=>{state.selectedDate=d;state.calendarMode='day';renderCalendar();},
-    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor
+    openEdit, openAdd, openMember, markDone, archiveItem, deleteItem, exportData, resetData, openSettings, openActivationPanel, activateApp, deactivateApp, openSettingsMember, archiveMember, openCategoryEditor, archiveCategory, openReferenceEditor, openModuleList, openBudgetEditor, openMemberDocList
   };
   init();
 })();
