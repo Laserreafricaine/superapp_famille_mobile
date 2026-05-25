@@ -1,7 +1,7 @@
 (() => {
   const STORAGE_KEY = 'superapp_famille_mobile_v4_3_2_kpi_cliquables';
   const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.3.2';
+  const APP_VERSION = '4.3.3';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -501,7 +501,7 @@
   function moduleKpis(items){
     return `<div class="module-kpis">
       ${items.map(([v,l,emoji='',action=''])=>{
-        const actionAttr = action ? ` data-action="${escapeAttr(action)}" tabindex="0" role="button" aria-label="Ouvrir ${escapeAttr(l)}"` : '';
+        const actionAttr = action ? ` data-action="${escapeAttr(action)}" onclick="${escapeAttr(action)}" tabindex="0" role="button" aria-label="Ouvrir ${escapeAttr(l)}"` : '';
         return `<article class="kpi-pill ${action?'clickable-card kpi-clickable':''}"${actionAttr}><span class="kpi-emoji">${emoji}</span><strong>${v}</strong><small>${l}</small></article>`;
       }).join('')}
     </div>`;
@@ -778,15 +778,27 @@
     const monthName = selected.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
     const events = itemsForDate(state.selectedDate);
     const week = weekDays();
+    const main = state.calendarMode === 'day'
+      ? calendarDayView(events)
+      : state.calendarMode === 'week'
+        ? `<div class="week-agenda-grid">${week.map(d=>weekDayPanel(d)).join('')}</div>`
+        : `<div class="calendar-grid">${['LUN','MAR','MER','JEU','VEN','SAM','DIM'].map(d=>`<div class="weekday">${d}</div>`).join('')}${days.map(d=>dayCell(d,selected)).join('')}</div>`;
     $('#view-calendar').innerHTML = `
-      <article class="calendar-hero clickable-card" onclick="SuperApp.openEdit('calendrier')"><div><span>Calendrier familial</span><h2>${monthName}</h2><p>${events.length} élément(s) le ${shortDate(state.selectedDate)}</p></div><img src="assets/images/illustrations/calendar-family.png" alt="Père et fille devant un calendrier" /></article>
-      <div class="calendar-visual-strip"><article onclick="SuperApp.openCalendarDate('${today}')"><img src="assets/images/cards/calendar_today.png" alt=""><b>Aujourd’hui</b></article><article onclick="SuperApp.calendarMode('week')"><img src="assets/images/cards/calendar_week.png" alt=""><b>Semaine</b></article><article onclick="SuperApp.openEdit('calendrier')"><img src="assets/images/cards/calendar_important.png" alt=""><b>Ajouter</b></article></div>
-      <div class="calendar-controls"><button class="${state.calendarMode==='day'?'active':''}" onclick="SuperApp.calendarMode('day')">Jour</button><button class="${state.calendarMode==='week'?'active':''}" onclick="SuperApp.calendarMode('week')">Semaine</button><button class="${state.calendarMode==='month'?'active':''}" onclick="SuperApp.calendarMode('month')">Mois</button></div>
-      <div class="chip-row module-filter-row">${calendarFilters().map(([id,label,icon])=>`<button class="chip ${state.calendarFilter===id?'active':''}" onclick="SuperApp.setCalendarFilter('${id}')">${icon} ${label}</button>`).join('')}</div>
-      <div class="calendar-head"><button onclick="SuperApp.shiftMonth(-1)">‹</button><h2>${monthName}</h2><button onclick="SuperApp.shiftMonth(1)">›</button></div>
-      ${state.calendarMode==='week' ? `<div class="week-agenda-grid">${week.map(d=>weekDayPanel(d)).join('')}</div>` : `<div class="calendar-grid">${['LUN','MAR','MER','JEU','VEN','SAM','DIM'].map(d=>`<div class="weekday">${d}</div>`).join('')}${days.map(d=>dayCell(d,selected)).join('')}</div>`}
-      <div class="section-title"><h2>${displayDate(state.selectedDate)}</h2><button class="link-btn" onclick="SuperApp.openEdit('calendrier')">+ Ajouter</button></div>
+      <article class="calendar-hero clickable-card" onclick="SuperApp.openEdit('calendrier')"><div><span>Calendrier familial</span><h2>${state.calendarMode === 'day' ? displayDate(state.selectedDate) : monthName}</h2><p>${events.length} élément(s) · filtre ${calendarFilterLabel()}</p></div><img src="assets/images/illustrations/calendar-family.png" alt="Père et fille devant un calendrier" /></article>
+      <div class="calendar-visual-strip"><article class="clickable-card" onclick="SuperApp.openCalendarDate('${today}')"><img src="assets/images/cards/calendar_today.png" alt=""><b>Aujourd’hui</b></article><article class="clickable-card" onclick="SuperApp.calendarMode('week')"><img src="assets/images/cards/calendar_week.png" alt=""><b>Semaine</b></article><article class="clickable-card" onclick="SuperApp.openEdit('calendrier')"><img src="assets/images/cards/calendar_important.png" alt=""><b>Ajouter</b></article></div>
+      <div class="calendar-controls"><button type="button" class="${state.calendarMode==='day'?'active':''}" onclick="SuperApp.calendarMode('day')">Jour</button><button type="button" class="${state.calendarMode==='week'?'active':''}" onclick="SuperApp.calendarMode('week')">Semaine</button><button type="button" class="${state.calendarMode==='month'?'active':''}" onclick="SuperApp.calendarMode('month')">Mois</button></div>
+      <div class="chip-row module-filter-row">${calendarFilters().map(([id,label,icon])=>`<button type="button" class="chip ${state.calendarFilter===id?'active':''}" onclick="SuperApp.setCalendarFilter('${id}')">${icon} ${label}</button>`).join('')}</div>
+      ${state.calendarMode === 'month' ? `<div class="calendar-head"><button type="button" onclick="SuperApp.shiftMonth(-1)">‹</button><h2>${monthName}</h2><button type="button" onclick="SuperApp.shiftMonth(1)">›</button></div>` : ''}
+      ${main}
+      <div class="section-title"><h2>${displayDate(state.selectedDate)}</h2><button class="link-btn" type="button" onclick="SuperApp.openEdit('calendrier')">+ Ajouter</button></div>
       <div class="agenda-list">${events.length ? events.map(x=>agendaRow(x,x.icon,x.label)).join('') : '<div class="empty">Aucun élément pour cette journée.</div>'}</div>`;
+  }
+  function calendarFilterLabel(){
+    const found = calendarFilters().find(([id])=>id === state.calendarFilter);
+    return found ? found[1] : 'Tous';
+  }
+  function calendarDayView(events){
+    return `<div class="calendar-day-view"><article class="day-focus-card"><div><span>📅 Vue jour</span><h3>${displayDate(state.selectedDate)}</h3><p>${events.length ? events.length + ' élément(s) pour cette journée.' : 'Journée libre pour ce filtre.'}</p></div><button type="button" class="btn primary" onclick="SuperApp.openEdit('calendrier')">+ Ajouter</button></article>${events.length ? `<div class="day-focus-list">${events.map(x=>agendaRow(x,x.icon,x.label)).join('')}</div>` : '<div class="empty cute-empty"><b>🌿 Rien de prévu</b><small>Change de filtre ou ajoute un événement.</small></div>'}</div>`;
   }
   function calendarFilters(){ return [['all','Tous','▦'],['maison','Maison','🏠'],['courses_repas','Courses & repas','🍽️'],['education','Éducation','📘'],['sante','Santé','💗'],['sport_loisirs','Sport / loisirs','⚽'],['familles','Familles','👨‍👩‍👧‍👦'],['calendrier','Autres','📌']]; }
   function weekDayPanel(d){
@@ -800,11 +812,35 @@
   function agendaRow(x,icon,label){ return `<article class="agenda-item clickable-card" onclick="SuperApp.openItem('${x.id}')"><div class="agenda-icon">${icon}</div><div><b>${x.title}</b><small>${label} · ${memberName(x.member)} ${x.date ? '· '+shortDate(x.date):''}</small></div><time>${x.time || ''}</time></article>`; }
 
   function renderNotifications(){
-    const notices = getNotifications();
-    const topImages = [['Urgent','assets/images/cards/notifications_alert.png'],['Santé','assets/images/cards/notifications_sante.png'],['Courses','assets/images/cards/notifications_courses.png'],['Maison','assets/images/cards/notifications_maison.png']];
-    $('#view-notifications').innerHTML = `<div class="calendar-visual-strip">${topImages.map(([t,img])=>`<article class="clickable-card" onclick="SuperApp.setView('notifications')"><img src="${img}" alt=""><b>${t}</b></article>`).join('')}</div><div class="chip-row"><button class="chip active">Toutes</button><button class="chip">Santé</button><button class="chip">Maison</button><button class="chip">Courses</button><button class="chip">Éducation</button></div><div class="section-title"><h2>Aujourd’hui</h2></div><div class="agenda-list">${notices.length ? notices.map(notificationRow).join('') : '<div class="empty">Aucune notification.</div>'}</div>`;
+    const all = getNotifications();
+    const notices = filteredNotifications(all);
+    const cards = [
+      ['urgent','Urgent','assets/images/cards/notifications_alert.png','🚨'],
+      ['sante','Santé','assets/images/cards/notifications_sante.png','💗'],
+      ['courses_repas','Courses','assets/images/cards/notifications_courses.png','🛒'],
+      ['maison','Maison','assets/images/cards/notifications_maison.png','🏠']
+    ];
+    const chips = [['all','Toutes','🔔'],['sante','Santé','💗'],['maison','Maison','🏠'],['courses_repas','Courses','🛒'],['education','Éducation','📘']];
+    $('#view-notifications').innerHTML = `<div class="calendar-visual-strip notif-top-strip">${cards.map(([filter,t,img,emoji])=>`<article class="clickable-card ${state.notifFilter===filter?'active':''}" onclick="SuperApp.setNotificationFilter('${filter}')"><img src="${img}" alt=""><b>${emoji} ${t}</b><small>${notificationCountFor(filter, all)} rappel(s)</small></article>`).join('')}</div><div class="chip-row">${chips.map(([id,label,icon])=>`<button type="button" class="chip ${state.notifFilter===id?'active':''}" onclick="SuperApp.setNotificationFilter('${id}')">${icon} ${label}</button>`).join('')}</div><div class="section-title"><h2>${notificationTitle()}</h2><small>${notices.length} notification(s)</small></div><div class="agenda-list">${notices.length ? notices.map(notificationRow).join('') : '<div class="empty cute-empty"><b>🌿 Rien à signaler</b><small>Change de filtre ou profite du calme.</small></div>'}</div>`;
   }
-  function notificationRow(n){ const btnClass=n.module==='sante'?'primary':n.module==='courses_repas'?'green':'blue'; return `<article class="notif-item"><div class="agenda-icon">${n.icon}</div><div><b>${n.title}</b><small>${n.desc}</small><div class="notif-actions"><button class="btn ghost" onclick="SuperApp.openItem('${n.id}')">Voir</button><button class="btn ${btnClass}" onclick="SuperApp.markDone('${n.id}')">Marquer comme fait</button></div></div><time>${n.time}</time></article>`; }
+  function filteredNotifications(all){
+    const f = state.notifFilter || 'all';
+    if(f === 'all') return all;
+    if(f === 'urgent') return all.filter(n=>['urgent','important'].includes(String(n.niveau||'').toLowerCase()) || n.time === 'Aujourd’hui');
+    return all.filter(n=>canonicalModuleId(n.module) === canonicalModuleId(f));
+  }
+  function notificationCountFor(filter, all){ return filteredNotificationsFor(filter, all).length; }
+  function filteredNotificationsFor(filter, all){
+    if(filter === 'all') return all;
+    if(filter === 'urgent') return all.filter(n=>['urgent','important'].includes(String(n.niveau||'').toLowerCase()) || n.time === 'Aujourd’hui');
+    return all.filter(n=>canonicalModuleId(n.module) === canonicalModuleId(filter));
+  }
+  function notificationTitle(){
+    const f = state.notifFilter || 'all';
+    return ({all:'Aujourd’hui', urgent:'Urgent', sante:'Santé', maison:'Maison', courses_repas:'Courses', education:'Éducation'}[f] || 'Notifications');
+  }
+  function setNotificationFilter(filter){ state.notifFilter = filter || 'all'; renderNotifications(); }
+  function notificationRow(n){ const btnClass=n.module==='sante'?'primary':n.module==='courses_repas'?'green':'blue'; return `<article class="notif-item"><div class="agenda-icon">${n.icon}</div><div><b>${n.title}</b><small>${n.desc}</small><div class="notif-actions"><button class="btn ghost" type="button" onclick="event.stopPropagation();SuperApp.openItem('${n.id}')">Voir</button><button class="btn ${btnClass}" type="button" onclick="event.stopPropagation();SuperApp.markDone('${n.id}')">Marquer comme fait</button></div></div><time>${n.time}</time></article>`; }
 
   function renderSettings(){
     const items = [
@@ -1198,7 +1234,7 @@
       elements,
       documents: structuredClone(data.documents || []),
       notifications: getNotifications().map(n=>({...n, module:canonicalModuleId(n.module), syncStatus:'synced'})),
-      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_2_kpi_cliquables', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
+      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_3_filtres_actions', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
     };
   }
   function exportData(){
@@ -1207,7 +1243,7 @@
       offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), data: buildExportData()
     };
     const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-2-kpi-cliquables-export.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-3-filtres-actions-export.json'; a.click(); URL.revokeObjectURL(a.href);
   }
   function normalizeImportPayload(json){
     const payload = json?.schema === 'superapp_famille' ? {...(json.data||{}), offer:json.offer, appsRegistry:json.appsRegistry || json.data?.socle?.appsRegistry} : json;
@@ -1268,7 +1304,7 @@
   }
   function resetData(){ if(confirm('Réinitialiser les données locales ?')){ data=ensureDataShape(structuredClone(defaultData)); save(); render(); } }
   window.SuperApp = {
-    setView, openModule, openItem, openCalendarDate, openCalendarModule, setCalendarFilter,
+    setView, openModule, openItem, openCalendarDate, openCalendarModule, setCalendarFilter, setNotificationFilter,
     renderAppsHome:()=>renderApps(), render:()=>renderApps(),
     calendarMode:(m)=>{state.calendarMode=m;renderCalendar();},
     shiftMonth:(n)=>{const d=parseDMY(state.selectedDate)||new Date();d.setMonth(d.getMonth()+n);state.selectedDate=formatDMY(d);renderCalendar();},

@@ -201,3 +201,16 @@ body{padding:0}.app-shell{min-height:100vh;display:flex;justify-content:center}.
 .kpi-pill.kpi-clickable::after{content:'›';position:absolute;right:12px;top:10px;width:24px;height:24px;border-radius:999px;display:grid;place-items:center;background:rgba(59,91,139,.10);color:var(--ink);font-weight:950;}
 .kpi-emoji{position:absolute;left:12px;top:10px;font-size:20px;line-height:1;}
 .kpi-pill.kpi-clickable strong{padding-right:28px;}
+
+/* V4.3.3 — filtres et actions téléphone */
+.calendar-day-view{display:grid;gap:14px;margin:14px 0;}
+.day-focus-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;border-radius:28px;background:rgba(255,255,255,.86);box-shadow:0 14px 38px rgba(42,54,82,.08);border:1px solid rgba(42,54,82,.08);}
+.day-focus-card span{font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:.78rem;}
+.day-focus-card h3{margin:4px 0;color:var(--ink);font-size:1.35rem;}
+.day-focus-card p{margin:0;color:var(--muted);font-weight:700;}
+.day-focus-list{display:grid;gap:10px;}
+.notif-top-strip article.active{outline:3px solid rgba(238,116,89,.26);box-shadow:0 18px 44px rgba(238,116,89,.16);transform:translateY(-1px);}
+.notif-top-strip article small{display:block;margin-top:4px;color:var(--muted);font-weight:800;font-size:.75rem;}
+.chip{touch-action:manipulation;-webkit-tap-highlight-color:rgba(238,116,89,.16);}
+.calendar-controls button,.module-filter-row .chip,.notif-actions .btn,.calendar-visual-strip article,.kpi-clickable{touch-action:manipulation;}
+.kpi-emoji{font-size:1.1rem;line-height:1;display:inline-grid;place-items:center;margin-bottom:4px;}
