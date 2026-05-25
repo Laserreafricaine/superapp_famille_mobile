@@ -1,7 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_5_meteo_auto_coherente';
-  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_4_localisation_meteo','superapp_famille_mobile_v4_3_2_kpi_cliquables','superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.3.5';
+  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_6_icone_meteo_dynamique';
+  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_5_meteo_auto_coherente','superapp_famille_mobile_v4_3_4_localisation_meteo','superapp_famille_mobile_v4_3_2_kpi_cliquables','superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
+  const APP_VERSION = '4.3.6';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -367,7 +367,7 @@
   function init(){
     bindNavigation(); bindDialogs(); render();
     autoRefreshWeatherOnOpen();
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./service-worker.js?v=4.3.5').catch(()=>{}); }
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./service-worker.js?v=4.3.6').catch(()=>{}); }
   }
 
   function setView(view){
@@ -510,7 +510,7 @@
         <img src="assets/images/hero/header.png" alt="Famille canonique devant la maison" />
       </article>
       <article class="card weather weather-premium clickable-card" onclick="SuperApp.openSettings('localisation')">
-        <div class="sun">🌤️</div><div><strong>${weatherTemperatureText()}</strong><br><small>${weatherMainLine()}</small></div>
+        <div class="sun" aria-label="Icône météo">${currentWeatherIcon()}</div><div><strong>${weatherTemperatureText()}</strong><br><small>${weatherMainLine()}</small></div>
         <div class="right"><b>${weatherCityLabel()}</b><br><small>${weatherSummary()}</small><br><small>${weatherUpdatedText()}</small></div>
       </article>
       <div class="section-title"><h2>Aujourd’hui</h2><span>${displayDate(today).replace(/^./,c=>c.toUpperCase())}</span></div>
@@ -1111,7 +1111,7 @@
     return `${settingsVisualHero({title:'Localisation du foyer', text:'La ville du foyer alimente la météo de l’accueil, les alertes utiles, le calendrier, Maison et Sport / loisirs. Tout reste modifiable sur mobile.', img:'assets/images/cards/settings_country.png', emoji:'🏡', chips:[weatherCityLabel(), f.weatherAuto===false?'Météo désactivée':'Météo automatique', f.useDeviceLocation?'Position téléphone':'Ville manuelle']})}
       <div class="location-dashboard">
         <article class="location-main-card"><span>🏡</span><div><b>${escapeHtml(f.city || 'Eulmont')}</b><small>${escapeHtml(f.postalCode || '54690')} — ${escapeHtml(f.country || 'France')}</small><p>Ville météo : <b>${escapeHtml(f.weatherCity || f.city || 'Eulmont')}</b></p></div></article>
-        <article class="location-main-card"><span>🌤️</span><div><b>${escapeHtml(data.weather?.summary || 'Météo à actualiser')}</b><small>${weatherSummary()}</small><p>${data.weather?.updatedAt ? 'Actualisée : ' + new Date(data.weather.updatedAt).toLocaleString('fr-FR') : 'Clique sur Actualiser météo quand tu veux tester.'}</p></div></article>
+        <article class="location-main-card"><span>${currentWeatherIcon()}</span><div><b>${escapeHtml(data.weather?.summary || 'Météo à actualiser')}</b><small>${weatherSummary()}</small><p>${data.weather?.updatedAt ? 'Actualisée : ' + new Date(data.weather.updatedAt).toLocaleString('fr-FR') : 'Clique sur Actualiser météo quand tu veux tester.'}</p></div></article>
       </div>
       <div class="form-field"><label>Ville du foyer</label><input name="city" required value="${escapeAttr(f.city || 'Eulmont')}"></div>
       <div class="form-field"><label>Code postal</label><input name="postalCode" required value="${escapeAttr(f.postalCode || '54690')}"></div>
@@ -1279,13 +1279,30 @@
   function weatherCodeLabel(code){
     const c = Number(code);
     if([0].includes(c)) return 'Ciel clair';
-    if([1,2,3].includes(c)) return 'Nuages variables';
+    if([1,2].includes(c)) return 'Principalement clair';
+    if([3].includes(c)) return 'Nuageux';
     if([45,48].includes(c)) return 'Brouillard';
     if([51,53,55,56,57].includes(c)) return 'Bruine';
     if([61,63,65,66,67,80,81,82].includes(c)) return 'Pluie';
     if([71,73,75,77,85,86].includes(c)) return 'Neige';
     if([95,96,99].includes(c)) return 'Orage';
     return 'Météo';
+  }
+  function weatherCodeIcon(code){
+    const c = Number(code);
+    if([0].includes(c)) return '☀️';
+    if([1,2].includes(c)) return '🌤️';
+    if([3].includes(c)) return '☁️';
+    if([45,48].includes(c)) return '🌫️';
+    if([51,53,55,56,57].includes(c)) return '🌦️';
+    if([61,63,65,66,67,80,81,82].includes(c)) return '🌧️';
+    if([71,73,75,77,85,86].includes(c)) return '❄️';
+    if([95,96,99].includes(c)) return '⛈️';
+    return '🌤️';
+  }
+  function currentWeatherIcon(){
+    const w = data.weather || {};
+    return w.icon || weatherCodeIcon(w.weatherCode);
   }
   function weatherCoords(){
     const f = foyer();
@@ -1309,7 +1326,7 @@
       data.weather = {
         city, latitude:lat, longitude:lon,
         temperature: Number.isFinite(currentTemp) ? currentTemp : null,
-        wind: cur.wind_speed_10m, weatherCode: cur.weather_code,
+        wind: cur.wind_speed_10m, weatherCode: cur.weather_code, icon: weatherCodeIcon(cur.weather_code),
         summary: weatherCodeLabel(cur.weather_code),
         source:'open-meteo', updatedAt:nowISO()
       };
@@ -1389,7 +1406,7 @@
       elements,
       documents: structuredClone(data.documents || []),
       notifications: getNotifications().map(n=>({...n, module:canonicalModuleId(n.module), syncStatus:'synced'})),
-      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_5_meteo_auto_coherente', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
+      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_6_icone_meteo_dynamique', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
     };
   }
   function exportData(){
@@ -1398,7 +1415,7 @@
       offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), data: buildExportData()
     };
     const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-5-meteo-auto-coherente-export.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-6-icone-meteo-dynamique-export.json'; a.click(); URL.revokeObjectURL(a.href);
   }
   function normalizeImportPayload(json){
     const payload = json?.schema === 'superapp_famille' ? {...(json.data||{}), offer:json.offer, appsRegistry:json.appsRegistry || json.data?.socle?.appsRegistry} : json;

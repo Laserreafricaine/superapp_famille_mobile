@@ -1,5 +1,5 @@
-const CACHE = 'superapp-famille-v4-3-5-meteo-auto-coherente-20260525-anticache';
-const CORE_ASSETS = ['./', './index.html', './css/app.css?v=4.3.5', './js/app.js?v=4.3.5', './manifest.json?v=4.3.5'];
+const CACHE = 'superapp-famille-v4-3-6-icone-meteo-dynamique-20260525-anticache';
+const CORE_ASSETS = ['./', './index.html', './css/app.css?v=4.3.6', './js/app.js?v=4.3.6', './manifest.json?v=4.3.6'];
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE_ASSETS)).catch(()=>{}));
