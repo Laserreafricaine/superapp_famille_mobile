@@ -1,5 +1,32 @@
-const CACHE = 'superapp-famille-v4-3-1-kpi-cliquables-20260525';
-const ASSETS = ["./", "./index.html", "./css/app.css", "./js/app.js", "./manifest.json", "./assets/icons/icon-192.svg", "./assets/icons/icon-512.svg", "./assets/icons/icon_calendrier.svg", "./assets/icons/icon_courses.png", "./assets/icons/icon_education.png", "./assets/icons/icon_famille.png", "./assets/icons/icon_maison.png", "./assets/icons/icon_parametres.png", "./assets/icons/icon_sante.png", "./assets/icons/icon_sport.png", "./assets/images/avatars/avatar_awa.png", "./assets/images/avatars/avatar_julie.png", "./assets/images/avatars/avatar_mandiaye.png", "./assets/images/avatars/avatar_salif.png", "./assets/images/avatars/avatar_salma.png", "./assets/images/cards/calendar_family.png", "./assets/images/cards/calendar_important.png", "./assets/images/cards/calendar_modules.png", "./assets/images/cards/calendar_month.png", "./assets/images/cards/calendar_today.png", "./assets/images/cards/calendar_week.png", "./assets/images/cards/courses_alertes.png", "./assets/images/cards/courses_budget.png", "./assets/images/cards/courses_calendrier_repas.png", "./assets/images/cards/courses_liste.png", "./assets/images/cards/courses_menu_jour.png", "./assets/images/cards/courses_menu_semaine.png", "./assets/images/cards/courses_parametres.png", "./assets/images/cards/courses_stock.png", "./assets/images/cards/education_activites.png", "./assets/images/cards/education_calendrier.png", "./assets/images/cards/education_controles.png", "./assets/images/cards/education_devoirs.png", "./assets/images/cards/education_documents.png", "./assets/images/cards/education_notes.png", "./assets/images/cards/familles_assurances.png", "./assets/images/cards/familles_diplomes.png", "./assets/images/cards/familles_dossier.png", "./assets/images/cards/familles_identite.png", "./assets/images/cards/familles_passeport.png", "./assets/images/cards/familles_sante.png", "./assets/images/cards/familles_scolarite.png", "./assets/images/cards/maison_calendrier.png", "./assets/images/cards/maison_entretien.png", "./assets/images/cards/maison_repartition.png", "./assets/images/cards/maison_routines.png", "./assets/images/cards/maison_stock_rangement.png", "./assets/images/cards/maison_taches.png", "./assets/images/cards/maison_urgences.png", "./assets/images/cards/notifications_alert.png", "./assets/images/cards/notifications_courses.png", "./assets/images/cards/notifications_education.png", "./assets/images/cards/notifications_maison.png", "./assets/images/cards/notifications_sante.png", "./assets/images/cards/notifications_sport.png", "./assets/images/cards/sante_aujourdhui.png", "./assets/images/cards/sante_documents.png", "./assets/images/cards/sante_medicaments.png", "./assets/images/cards/sante_rdv.png", "./assets/images/cards/sante_traitements.png", "./assets/images/cards/sante_urgences.png", "./assets/images/cards/sante_vaccins.png", "./assets/images/cards/settings_appearance.png", "./assets/images/cards/settings_categories.png", "./assets/images/cards/settings_country.png", "./assets/images/cards/settings_data.png", "./assets/images/cards/settings_famille.png", "./assets/images/cards/settings_notifications.png", "./assets/images/cards/settings_sync.png", "./assets/images/cards/sport_activites.png", "./assets/images/cards/sport_alertes.png", "./assets/images/cards/sport_calendrier.png", "./assets/images/cards/sport_clubs.png", "./assets/images/cards/sport_documents.png", "./assets/images/cards/sport_materiel.png", "./assets/images/cards/sport_sorties.png", "./assets/images/famille/family_badge_transparent.png", "./assets/images/hero/header.png", "./assets/images/illustrations/calendar-family.png", "./assets/images/illustrations/education-desk.png", "./assets/images/illustrations/grocery-fridge.png", "./assets/images/illustrations/health-kit.png", "./assets/images/illustrations/home-task.png", "./assets/images/illustrations/menu-week.png", "./assets/images/illustrations/sport-bag.png", "./assets/images/mobile/superapp.png"];
-self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
-self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
+const CACHE = 'superapp-famille-v4-3-2-kpi-cliquables-20260525-anticache';
+const CORE_ASSETS = ['./', './index.html', './css/app.css?v=4.3.2', './js/app.js?v=4.3.2', './manifest.json?v=4.3.2'];
+self.addEventListener('install', event => {
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE_ASSETS)).catch(()=>{}));
+});
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
+});
+self.addEventListener('fetch', event => {
+  const req = event.request;
+  const url = new URL(req.url);
+  if (req.method !== 'GET') return;
+  const isAppShell = url.pathname.endsWith('/') || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/app.js') || url.pathname.endsWith('/app.css') || url.pathname.endsWith('/manifest.json');
+  if (isAppShell) {
+    event.respondWith(
+      fetch(req, {cache:'no-store'})
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(req, copy)).catch(()=>{});
+          return response;
+        })
+        .catch(() => caches.match(req).then(cached => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+  event.respondWith(caches.match(req).then(cached => cached || fetch(req)));
+});

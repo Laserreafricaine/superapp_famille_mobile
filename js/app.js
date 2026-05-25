@@ -1,7 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_1_kpi_cliquables';
-  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.3.1';
+  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_2_kpi_cliquables';
+  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
+  const APP_VERSION = '4.3.2';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -340,6 +340,30 @@
     $$('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>setView(btn.dataset.target)));
     $('#quickNotificationBtn').addEventListener('click',()=>setView('notifications'));
     $('#fab').addEventListener('click',()=>openQuickActions());
+    document.addEventListener('click', handleDelegatedCardAction);
+    document.addEventListener('keydown', e=>{
+      if((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('[data-action]')){
+        e.preventDefault();
+        runCardAction(e.target.dataset.action);
+      }
+    });
+  }
+  function handleDelegatedCardAction(e){
+    const target = e.target.closest('[data-action]');
+    if(!target) return;
+    if(e.target.closest('button,a,input,select,textarea')) return;
+    runCardAction(target.dataset.action);
+  }
+  function runCardAction(action){
+    if(!action) return;
+    const match = String(action).match(/^SuperApp\.([A-Za-z0-9_]+)\((.*)\)$/);
+    if(!match || !window.SuperApp || typeof window.SuperApp[match[1]] !== 'function') return;
+    try {
+      const args = match[2].trim() ? Function('return [' + match[2] + ']')() : [];
+      window.SuperApp[match[1]](...args);
+    } catch(err){
+      console.warn('Action de carte impossible', action, err);
+    }
   }
 
   function bindDialogs(){
@@ -477,8 +501,8 @@
   function moduleKpis(items){
     return `<div class="module-kpis">
       ${items.map(([v,l,emoji='',action=''])=>{
-        const click = action ? ` onclick="${action}" tabindex="0" role="button" aria-label="Ouvrir ${escapeAttr(l)}"` : '';
-        return `<article class="kpi-pill ${action?'clickable-card kpi-clickable':''}"${click}><span class="kpi-emoji">${emoji}</span><strong>${v}</strong><small>${l}</small></article>`;
+        const actionAttr = action ? ` data-action="${escapeAttr(action)}" tabindex="0" role="button" aria-label="Ouvrir ${escapeAttr(l)}"` : '';
+        return `<article class="kpi-pill ${action?'clickable-card kpi-clickable':''}"${actionAttr}><span class="kpi-emoji">${emoji}</span><strong>${v}</strong><small>${l}</small></article>`;
       }).join('')}
     </div>`;
   }
@@ -1174,7 +1198,7 @@
       elements,
       documents: structuredClone(data.documents || []),
       notifications: getNotifications().map(n=>({...n, module:canonicalModuleId(n.module), syncStatus:'synced'})),
-      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_1_parametres_autonomes', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
+      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_2_kpi_cliquables', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
     };
   }
   function exportData(){
@@ -1183,7 +1207,7 @@
       offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), data: buildExportData()
     };
     const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-1-parametres-autonomes-export.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-2-kpi-cliquables-export.json'; a.click(); URL.revokeObjectURL(a.href);
   }
   function normalizeImportPayload(json){
     const payload = json?.schema === 'superapp_famille' ? {...(json.data||{}), offer:json.offer, appsRegistry:json.appsRegistry || json.data?.socle?.appsRegistry} : json;
