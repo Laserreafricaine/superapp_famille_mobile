@@ -1,7 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_4_localisation_meteo';
-  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_2_kpi_cliquables','superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
-  const APP_VERSION = '4.3.4';
+  const STORAGE_KEY = 'superapp_famille_mobile_v4_3_5_meteo_auto_coherente';
+  const LEGACY_STORAGE_KEYS = ['superapp_famille_mobile_v4_3_4_localisation_meteo','superapp_famille_mobile_v4_3_2_kpi_cliquables','superapp_famille_mobile_v4_3_1_kpi_cliquables','superapp_famille_mobile_v4_3_cartes_exploitables','superapp_famille_mobile_v4_2_visuels_cockpit_mobile','superapp_famille_mobile_v4_1_parametres_autonomes','superapp_famille_mobile_v4_modulaire','superapp_famille_mobile_v3','superapp_famille_mobile_v2'];
+  const APP_VERSION = '4.3.5';
   const pad2 = n => String(n).padStart(2, '0');
   const todayObj = new Date();
   const today = `${pad2(todayObj.getDate())}-${pad2(todayObj.getMonth()+1)}-${todayObj.getFullYear()}`;
@@ -316,10 +316,31 @@
   function currency(value){ return `${Number(value||0).toLocaleString('fr-FR')} ${data.foodBudget?.currency || data.settings.currency || 'EUR'}`; }
   function foyer(){ data.foyer = data.foyer || {}; return data.foyer; }
   function weatherCityLabel(){ const f=foyer(); return `${f.weatherCity || f.city || data.settings.city || 'Eulmont'}${f.postalCode ? ' — ' + f.postalCode : ''}`; }
+  function weatherTemperatureText(){
+    const w = data.weather || {};
+    const temp = Number(w.temperature);
+    return Number.isFinite(temp) ? `${Math.round(temp)}°C` : '--°C';
+  }
+  function weatherMainLine(){
+    const w = data.weather || {}; const f = foyer();
+    if(f.weatherAuto===false) return 'Météo automatique désactivée';
+    if(w.temperature !== null && w.temperature !== undefined && w.temperature !== '') return `${w.summary || 'Météo'} · actuelle`;
+    return 'Météo à actualiser';
+  }
   function weatherSummary(){
     const w = data.weather || {}; const f = foyer();
-    if(w.temperature !== null && w.temperature !== undefined && w.temperature !== '') return `${Math.round(Number(w.temperature))}° · ${w.summary || 'météo'}${w.wind ? ' · vent ' + Math.round(Number(w.wind)) + ' km/h' : ''}`;
-    return `${f.weatherAuto===false?'Météo désactivée':'Météo à actualiser'}`;
+    if(f.weatherAuto===false) return 'Météo désactivée';
+    if(w.temperature !== null && w.temperature !== undefined && w.temperature !== ''){
+      const temp = Math.round(Number(w.temperature));
+      const wind = w.wind !== null && w.wind !== undefined && w.wind !== '' ? ` · vent ${Math.round(Number(w.wind))} km/h` : '';
+      return `Actuel ${temp}° · ${w.summary || 'météo'}${wind}`;
+    }
+    return 'Météo à actualiser';
+  }
+  function weatherUpdatedText(){
+    const w = data.weather || {};
+    if(!w.updatedAt) return 'Actualisation automatique à l’ouverture';
+    return `Actualisée à ${new Date(w.updatedAt).toLocaleTimeString('fr-FR',{hour:'2-digit', minute:'2-digit'})}`;
   }
   const WEATHER_CITY_PRESETS = [
     {city:'Eulmont', postalCode:'54690', country:'France', lat:48.747, lon:6.230},
@@ -345,7 +366,8 @@
 
   function init(){
     bindNavigation(); bindDialogs(); render();
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./service-worker.js').catch(()=>{}); }
+    autoRefreshWeatherOnOpen();
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./service-worker.js?v=4.3.5').catch(()=>{}); }
   }
 
   function setView(view){
@@ -488,8 +510,8 @@
         <img src="assets/images/hero/header.png" alt="Famille canonique devant la maison" />
       </article>
       <article class="card weather weather-premium clickable-card" onclick="SuperApp.openSettings('localisation')">
-        <div class="sun">🌤️</div><div><strong>18°C</strong><br><small>Ensoleillé · journée calme</small></div>
-        <div class="right"><b>${weatherCityLabel()}</b><br><small>${weatherSummary()}</small></div>
+        <div class="sun">🌤️</div><div><strong>${weatherTemperatureText()}</strong><br><small>${weatherMainLine()}</small></div>
+        <div class="right"><b>${weatherCityLabel()}</b><br><small>${weatherSummary()}</small><br><small>${weatherUpdatedText()}</small></div>
       </article>
       <div class="section-title"><h2>Aujourd’hui</h2><span>${displayDate(today).replace(/^./,c=>c.toUpperCase())}</span></div>
       <div class="today-grid">
@@ -1243,12 +1265,15 @@
     data.foyer = {...(data.foyer||{}), city, postalCode, country, weatherCity:city, latitude:lat, longitude:lon, useDeviceLocation:false, updatedAt:nowISO(), updatedFrom:'application_mobile', syncStatus:'local_only'};
     data.settings.city = city; data.settings.postalCode = postalCode; data.settings.country = country; data.settings.weatherCity = city;
     save(); render(); showSettingsPanel('Localisation du foyer');
+    refreshWeather({silent:true, keepCurrentPanel:true});
   }
   function useCurrentPosition(){
     if(!navigator.geolocation){ alert('La géolocalisation n’est pas disponible sur ce téléphone.'); return; }
     navigator.geolocation.getCurrentPosition(pos=>{
       data.foyer = {...(data.foyer||{}), latitude:pos.coords.latitude, longitude:pos.coords.longitude, useDeviceLocation:true, updatedAt:nowISO(), updatedFrom:'application_mobile', syncStatus:'local_only'};
-      save(); render(); showSettingsPanel('Localisation du foyer'); alert('Position du téléphone enregistrée pour la météo.');
+      save(); render(); showSettingsPanel('Localisation du foyer');
+      refreshWeather({silent:true, keepCurrentPanel:true});
+      alert('Position du téléphone enregistrée pour la météo.');
     },()=>alert('Position non autorisée. Tu peux garder Eulmont — 54690 en ville météo.'),{enableHighAccuracy:false,timeout:10000,maximumAge:3600000});
   }
   function weatherCodeLabel(code){
@@ -1262,17 +1287,45 @@
     if([95,96,99].includes(c)) return 'Orage';
     return 'Météo';
   }
-  async function refreshWeather(){
+  function weatherCoords(){
     const f = foyer();
-    const lat = Number(f.latitude || WEATHER_CITY_PRESETS.find(x=>x.city===f.weatherCity || x.city===f.city)?.lat || 48.747);
-    const lon = Number(f.longitude || WEATHER_CITY_PRESETS.find(x=>x.city===f.weatherCity || x.city===f.city)?.lon || 6.230);
+    const preset = WEATHER_CITY_PRESETS.find(x=>x.city===f.weatherCity || x.city===f.city) || WEATHER_CITY_PRESETS[0];
+    return {
+      lat: Number(f.latitude || preset?.lat || 48.747),
+      lon: Number(f.longitude || preset?.lon || 6.230),
+      city: f.weatherCity || f.city || 'Eulmont'
+    };
+  }
+  async function refreshWeather(options={}){
+    const opts = typeof options === 'boolean' ? {silent:options} : options;
+    const f = foyer();
+    if(f.weatherAuto===false && opts.auto) return false;
+    const {lat, lon, city} = weatherCoords();
     try{
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`;
       const res = await fetch(url,{cache:'no-store'}); if(!res.ok) throw new Error('Météo indisponible');
       const json = await res.json(); const cur = json.current || {};
-      data.weather = {city:f.weatherCity || f.city || 'Eulmont', latitude:lat, longitude:lon, temperature:cur.temperature_2m, wind:cur.wind_speed_10m, weatherCode:cur.weather_code, summary:weatherCodeLabel(cur.weather_code), updatedAt:nowISO()};
-      save(); render(); showSettingsPanel('Localisation du foyer');
-    }catch(err){ alert('Impossible d’actualiser la météo maintenant. La ville reste bien enregistrée.'); }
+      const currentTemp = Number(cur.temperature_2m);
+      data.weather = {
+        city, latitude:lat, longitude:lon,
+        temperature: Number.isFinite(currentTemp) ? currentTemp : null,
+        wind: cur.wind_speed_10m, weatherCode: cur.weather_code,
+        summary: weatherCodeLabel(cur.weather_code),
+        source:'open-meteo', updatedAt:nowISO()
+      };
+      save(); render();
+      if(opts.keepCurrentPanel) showSettingsPanel('Localisation du foyer');
+      return true;
+    }catch(err){
+      if(!opts.silent) alert('Impossible d’actualiser la météo maintenant. La ville reste bien enregistrée.');
+      return false;
+    }
+  }
+  function autoRefreshWeatherOnOpen(){
+    const f = foyer();
+    if(f.weatherAuto===false) return;
+    // Actualisation directe à l’ouverture : on ne garde plus une ancienne température en grand.
+    refreshWeather({silent:true, auto:true});
   }
 
   function archiveMember(id){
@@ -1336,7 +1389,7 @@
       elements,
       documents: structuredClone(data.documents || []),
       notifications: getNotifications().map(n=>({...n, module:canonicalModuleId(n.module), syncStatus:'synced'})),
-      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_4_localisation_meteo', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
+      synchronisation: {sourceCollections, generatedFrom:'superapp_famille_mobile_v4_3_5_meteo_auto_coherente', rule:'merge_by_id_updatedAt_no_calendar_duplication_apps_registry_parametres_autonomes'}
     };
   }
   function exportData(){
@@ -1345,7 +1398,7 @@
       offer: structuredClone(data.offer || defaultOffer), appsRegistry: structuredClone(data.appsRegistry || makeAppsRegistry()), data: buildExportData()
     };
     const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-4-localisation-meteo-export.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='superapp-famille-v4-3-5-meteo-auto-coherente-export.json'; a.click(); URL.revokeObjectURL(a.href);
   }
   function normalizeImportPayload(json){
     const payload = json?.schema === 'superapp_famille' ? {...(json.data||{}), offer:json.offer, appsRegistry:json.appsRegistry || json.data?.socle?.appsRegistry} : json;
